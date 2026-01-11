@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+
 const App = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +26,7 @@ const App = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch('http://localhost:8000/api/attendance', {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/attendance`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(credentials),
@@ -154,7 +155,7 @@ const App = () => {
             {/* Main Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title="Course Average"
+                    title="Overall Attendance"
                     value={`${data.overall_course_avg}%`}
                     icon={<TrendingUp className="text-blue-400" />}
                     gradient="from-blue-500/20 to-cyan-500/20"
