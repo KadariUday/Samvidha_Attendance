@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import requests
+import httpx
+import asyncio
 from bs4 import BeautifulSoup
 import urllib3
 from typing import List, Dict, Any
+import time
 
 # Suppress SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -32,9 +34,10 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
 
-def scrape_attendance_data(session):
+async def scrape_attendance_data(client: httpx.AsyncClient):
     try:
-        att_response = session.get(ATTENDANCE_URL, headers=HEADERS, verify=False)
+        start_time = time.time()
+        att_response = await client.get(ATTENDANCE_URL, headers=HEADERS)
         att_soup = BeautifulSoup(att_response.content, 'html.parser')
         
         att_tables = att_soup.find_all('table')
@@ -58,23 +61,34 @@ def scrape_attendance_data(session):
             # Table 1: Course Attendance
             course_table = att_tables[1]
             rows = course_table.find_all('tr')
-            header = [h.text.strip() for h in rows[0].find_all(['th', 'td'])]
-            
-            attendance_values = []
-            for row in rows[1:]:
-                cols = [c.text.strip() for c in row.find_all('td')]
-                if len(cols) >= 8:
-                    course_data = dict(zip(header, cols))
-                    course_attendance.append(course_data)
-                    try:
-                        percentage = float(cols[7])
-                        attendance_values.append(percentage)
-                    except (ValueError, IndexError):
-                        pass
-            
-            if attendance_values:
-                overall_course_avg = round(sum(attendance_values) / len(attendance_values), 2)
+            if rows:
+                header = [h.text.strip() for h in rows[0].find_all(['th', 'td'])]
+                
+                attendance_values = []
+                for row in rows[1:]:
+                    cols = [c.text.strip() for c in row.find_all('td')]
+                    if len(cols) >= 8:
+                        course_data = dict(zip(header, cols))
+                        course_attendance.append(course_data)
+                        try:
+                            percentage = float(cols[7])
+                            attendance_values.append(percentage)
+                        except (ValueError, IndexError):
+                            pass
+                
+                if attendance_values:
+                    overall_course_avg = round(sum(attendance_values) / len(attendance_values), 2)
 
+        # Try to get roll number from different possible key names
+        roll_no = student_info.get('Rollno') or student_info.get('Roll No')
+        if roll_no:
+            # Ensure roll_no is clean (no extra whitespace)
+            roll_no = roll_no.strip()
+            student_info['profile_image'] = f"https://iare-data.s3.ap-south-1.amazonaws.com/uploads/STUDENTS/{roll_no}/{roll_no}.jpg"
+        else:
+            student_info['profile_image'] = None
+
+        print(f"Attendance scraping took: {time.time() - start_time:.2f}s")
         return {
             "student_info": student_info,
             "course_attendance": course_attendance,
@@ -84,9 +98,10 @@ def scrape_attendance_data(session):
         print(f"Scraping error (attendance): {e}")
         return None
 
-def scrape_biometric_data(session):
+async def scrape_biometric_data(client: httpx.AsyncClient):
     try:
-        bio_response = session.get(BIOMETRIC_URL, headers=HEADERS, verify=False)
+        start_time = time.time()
+        bio_response = await client.get(BIOMETRIC_URL, headers=HEADERS)
         bio_soup = BeautifulSoup(bio_response.content, 'html.parser')
         
         bio_table = bio_soup.find('table')
@@ -107,6 +122,7 @@ def scrape_biometric_data(session):
             if adjusted_total > 0:
                 bio_percentage = round((total_present / adjusted_total) * 100, 2)
             
+            print(f"Biometric scraping took: {time.time() - start_time:.2f}s")
             return {
                 "biometric_count": raw_count,
                 "biometric_adjusted": adjusted_total,
@@ -120,25 +136,36 @@ def scrape_biometric_data(session):
 
 @app.post("/api/attendance")
 async def get_attendance(login_data: LoginRequest):
+    total_start = time.time()
     payload = {
         'username': login_data.username,
         'password': login_data.password
     }
     
-    with requests.Session() as session:
-        login_response = session.post(LOGIN_URL, data=payload, headers=HEADERS, verify=False)
+    # Use follow_redirects=True for Samvidha login and verify=False to ignore SSL errors
+    async with httpx.AsyncClient(verify=False, follow_redirects=True) as client:
+        print("Starting login request...")
+        login_start = time.time()
+        login_response = await client.post(LOGIN_URL, data=payload, headers=HEADERS)
+        print(f"Login request took: {time.time() - login_start:.2f}s")
         
         if login_response.status_code != 200:
             raise HTTPException(status_code=401, detail="Login failed at Samvidha portal")
         
-        # Check if login was actually successful (Samvidha often returns 200 even with bad creds)
-        # We'll check by trying to fetch data
-        attendance_data = scrape_attendance_data(session)
+        # Samvidha often returns 200 even with bad creds. 
+        # Parallelize fetching attendance and biometric data
+        print("Starting parallel data fetch...")
+        fetch_start = time.time()
+        attendance_task = scrape_attendance_data(client)
+        biometric_task = scrape_biometric_data(client)
+        
+        attendance_data, biometric_data = await asyncio.gather(attendance_task, biometric_task)
+        print(f"Parallel fetch took: {time.time() - fetch_start:.2f}s")
+
         if not attendance_data or not attendance_data.get("student_info"):
              raise HTTPException(status_code=401, detail="Invalid credentials or unable to fetch data")
         
-        biometric_data = scrape_biometric_data(session)
-        
+        print(f"Total processing time: {time.time() - total_start:.2f}s")
         return {
             "success": True,
             "data": {
@@ -154,3 +181,7 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+
