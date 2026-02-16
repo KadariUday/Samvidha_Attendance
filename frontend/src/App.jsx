@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Main Application Component
 
 const App = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
