@@ -611,11 +611,18 @@ const App = () => {
                                                 <tbody className="text-sm">
                                                     {data.register.map((row, idx) => (
                                                         <tr key={idx} className="group hover:bg-white/[0.02] border-b border-white/5 last:border-0 transition-colors">
-                                                            {Object.values(row).map((val, vIdx) => (
-                                                                <td key={vIdx} className="p-4 text-slate-300 first:pl-6 last:pr-6 whitespace-nowrap">
-                                                                    {val}
-                                                                </td>
-                                                            ))}
+                                                            {Object.entries(row).map(([key, val], vIdx) => {
+                                                                const isAbsent = typeof val === 'string' && (val.includes('A (') || val.toLowerCase().includes('absent'));
+                                                                return (
+                                                                    <td
+                                                                        key={vIdx}
+                                                                        className={`p-4 first:pl-6 last:pr-6 whitespace-nowrap transition-colors ${isAbsent ? 'text-rose-400 font-bold' : 'text-slate-300'
+                                                                            }`}
+                                                                    >
+                                                                        {val}
+                                                                    </td>
+                                                                );
+                                                            })}
                                                         </tr>
                                                     ))}
                                                 </tbody>
