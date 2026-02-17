@@ -325,11 +325,11 @@ const App = () => {
 
             {/* Navigation Dashboard */}
             <div className="sticky top-20 z-40 bg-slate-950/50 backdrop-blur-md border-b border-white/5">
-                <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+                <div className="max-w-7xl mx-auto px-4 md:px-8 py-2">
                     <nav className="flex items-center justify-center gap-2 overflow-x-auto scrollbar-hide">
                         <button
                             onClick={() => switchTab('home')}
-                            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'home'
+                            className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'home'
                                 ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/25'
                                 : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
                                 }`}
@@ -339,7 +339,7 @@ const App = () => {
                         </button>
                         <button
                             onClick={() => switchTab('bunks')}
-                            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'bunks'
+                            className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'bunks'
                                 ? 'bg-cyan-600 border-cyan-500 text-white shadow-lg shadow-cyan-500/25'
                                 : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
                                 }`}
@@ -349,7 +349,7 @@ const App = () => {
                         </button>
                         <button
                             onClick={() => switchTab('register')}
-                            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'register'
+                            className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'register'
                                 ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/25'
                                 : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
                                 }`}
