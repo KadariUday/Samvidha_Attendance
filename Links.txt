@@ -1,7 +1,0 @@
-frontend:(https://samvidha-attendance-98tm.vercel.app/)----->VERCEL
-backend:(https://samvidha-attendance-2.onrender.com)-------->RENDER
-
-
-Sushanth2006
-
-cv,cc
