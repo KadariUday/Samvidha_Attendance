@@ -293,40 +293,6 @@ const App = () => {
                         </div>
                     </div>
 
-                    {/* Desktop Navigation */}
-                    <nav className="flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/5">
-                        <button
-                            onClick={() => switchTab('home')}
-                            className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${activeTab === 'home'
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25'
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                }`}
-                        >
-                            <BookOpen className="w-4 h-4" />
-                            Home
-                        </button>
-                        <button
-                            onClick={() => switchTab('bunks')}
-                            className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${activeTab === 'bunks'
-                                ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/25'
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                }`}
-                        >
-                            <AlertCircle className="w-4 h-4" />
-                            Bunk Board
-                        </button>
-                        <button
-                            onClick={() => switchTab('register')}
-                            className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${activeTab === 'register'
-                                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                }`}
-                        >
-                            <BookOpen className="w-4 h-4" />
-                            Attendance Register
-                        </button>
-                    </nav>
-
                     {/* User Profile & Refresh */}
                     <div className="flex items-center gap-4 md:gap-6">
                         <div className="text-right hidden md:block border-r border-white/10 pr-6 mr-1">
@@ -356,6 +322,44 @@ const App = () => {
                     </div>
                 </div>
             </header>
+
+            {/* Navigation Dashboard */}
+            <div className="sticky top-20 z-40 bg-slate-950/50 backdrop-blur-md border-b border-white/5">
+                <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+                    <nav className="flex items-center justify-center gap-2 overflow-x-auto scrollbar-hide">
+                        <button
+                            onClick={() => switchTab('home')}
+                            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'home'
+                                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/25'
+                                : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <BookOpen className="w-4 h-4" />
+                            Home
+                        </button>
+                        <button
+                            onClick={() => switchTab('bunks')}
+                            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'bunks'
+                                ? 'bg-cyan-600 border-cyan-500 text-white shadow-lg shadow-cyan-500/25'
+                                : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <AlertCircle className="w-4 h-4" />
+                            Bunk Board
+                        </button>
+                        <button
+                            onClick={() => switchTab('register')}
+                            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 flex-shrink-0 border ${activeTab === 'register'
+                                ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/25'
+                                : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <BookOpen className="w-4 h-4" />
+                            Attendance Register
+                        </button>
+                    </nav>
+                </div>
+            </div>
 
             {/* 3D Content Container */}
             <main className="max-w-7xl mx-auto p-4 md:p-8 relative z-10 perspective-1000">
