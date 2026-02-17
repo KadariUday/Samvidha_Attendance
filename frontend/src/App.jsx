@@ -9,7 +9,8 @@ import {
     BookOpen,
     Fingerprint,
     ChevronRight,
-    Loader2
+    Loader2,
+    XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -415,11 +416,18 @@ const App = () => {
                                         delay={0.3}
                                     />
                                     <NeonStatCard
+                                        title="Days Absent"
+                                        value={(data.biometric?.biometric_adjusted - data.biometric?.biometric_present) || 0}
+                                        icon={<XCircle className="w-6 h-6 text-rose-400" />}
+                                        color="rose"
+                                        delay={0.4}
+                                    />
+                                    <NeonStatCard
                                         title="Academic Year"
                                         value={data.student_info['Academic Year'] || '2025-26'}
                                         icon={<BookOpen className="w-6 h-6 text-orange-400" />}
                                         color="orange"
-                                        delay={0.4}
+                                        delay={0.5}
                                     />
                                 </div>
 
