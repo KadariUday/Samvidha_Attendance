@@ -79,6 +79,7 @@ async def scrape_attendance_data(client: httpx.AsyncClient):
                 if attendance_values:
                     overall_course_avg = round(sum(attendance_values) / len(attendance_values), 2)
 
+
         # Try to get roll number from different possible key names
         roll_no = student_info.get('Rollno') or student_info.get('Roll No')
         if roll_no:
@@ -134,6 +135,91 @@ async def scrape_biometric_data(client: httpx.AsyncClient):
         print(f"Scraping error (biometric): {e}")
         return None
 
+REGISTER_URL = "https://samvidha.iare.ac.in/home?action=std_att_register"
+
+async def scrape_attendance_register(client: httpx.AsyncClient):
+    try:
+        start_time = time.time()
+        print(f"Fetching Register URL: {REGISTER_URL}")
+        reg_response = await client.get(REGISTER_URL, headers=HEADERS)
+        print(f"Register Response Status: {reg_response.status_code}")
+        
+        reg_soup = BeautifulSoup(reg_response.content, 'html.parser')
+        
+        # Debug: Check for forms or date inputs
+        forms = reg_soup.find_all('form')
+        if forms:
+            print(f"Found {len(forms)} forms on Register page.")
+            for i, form in enumerate(forms):
+                inputs = form.find_all('input')
+                input_info = [f"{inp.get('name')}({inp.get('type')})" for inp in inputs]
+                print(f"Form {i} inputs: {input_info}")
+        
+        tables = reg_soup.find_all('table')
+        print(f"Found {len(tables)} tables in Register page.")
+        
+        register_data = []
+        
+        if tables:
+            target_table = None
+            max_rows = 0
+            
+            # Known headers for the register table
+            expected_headers_seeds = ['Date', 'Day', 'Period', 'Subject', 'Faculty', 'Topic', 'Status', 'Time']
+
+            for i, table in enumerate(tables):
+                rows = table.find_all('tr')
+                row_count = len(rows)
+                # print(f"Table {i}: {row_count} rows") # Debug
+                
+                if row_count > 0:
+                    # Check if this table has the expected headers
+                    first_row_text = rows[0].get_text().lower()
+                    
+                    # If it looks like the data table (contains 'date' and 'period')
+                    if 'date' in first_row_text and 'period' in first_row_text:
+                        target_table = table
+                        break
+                    
+                    # Fallback: largest table
+                    if row_count > max_rows:
+                        max_rows = row_count
+                        # Only set as fallback if we haven't found a better match
+                        if not target_table:
+                             target_table = table
+            
+            if target_table:
+                rows = target_table.find_all('tr')
+                if rows:
+                    # Extract headers
+                    header_row = rows[0]
+                    headers = [h.text.strip() for h in header_row.find_all(['th', 'td'])]
+                    
+                    # Clean headers (remove newlines, extra spaces)
+                    headers = [h.replace('\n', ' ').strip() for h in headers]
+                    
+                    # Extract data
+                    for row in rows[1:]:
+                        cols = [c.text.strip() for c in row.find_all('td')]
+                        
+                        # Basic validation: ensure we have at least some columns
+                        if len(cols) > 2: 
+                             record = {}
+                             for i, h in enumerate(headers):
+                                 if i < len(cols):
+                                     record[h] = cols[i]
+                                 else:
+                                     record[h] = ""
+                             register_data.append(record)
+
+        print(f"Extracted {len(register_data)} register records.")
+        print(f"Register scraping took: {time.time() - start_time:.2f}s")
+        return register_data
+
+    except Exception as e:
+        print(f"Scraping error (register): {e}")
+        return []
+
 @app.post("/api/attendance")
 async def get_attendance(login_data: LoginRequest):
     total_start = time.time()
@@ -158,8 +244,9 @@ async def get_attendance(login_data: LoginRequest):
         fetch_start = time.time()
         attendance_task = scrape_attendance_data(client)
         biometric_task = scrape_biometric_data(client)
+        register_task = scrape_attendance_register(client)
         
-        attendance_data, biometric_data = await asyncio.gather(attendance_task, biometric_task)
+        attendance_data, biometric_data, register_data = await asyncio.gather(attendance_task, biometric_task, register_task)
         print(f"Parallel fetch took: {time.time() - fetch_start:.2f}s")
 
         if not attendance_data or not attendance_data.get("student_info"):
@@ -170,7 +257,8 @@ async def get_attendance(login_data: LoginRequest):
             "success": True,
             "data": {
                 **attendance_data,
-                "biometric": biometric_data
+                "biometric": biometric_data,
+                "register": register_data
             }
         }
 

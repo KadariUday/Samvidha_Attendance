@@ -1,0 +1,83 @@
+# ==============================
+# Python (Backend)
+# ==============================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+
+# Logs
+*.log
+
+# ==============================
+# Node.js / React (Frontend)
+# ==============================
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Production builds
+frontend/build/
+frontend/dist/
+build/
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Cache
+frontend/.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==============================
+# IDE / Editor
+# ==============================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# OS Files
+# ==============================
+
+.DS_Store
+Thumbs.db
+
+# ==============================
+# Misc
+# ==============================
+
+*.sqlite3
+*.db
