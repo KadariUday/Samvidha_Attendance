@@ -7,20 +7,36 @@ from bs4 import BeautifulSoup
 import urllib3
 from typing import List, Dict, Any
 import time
+import os
+from motor.motor_asyncio import AsyncIOMotorClient
+from datetime import datetime
 
 # Suppress SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = FastAPI(title="Samvidha Attendance API")
 
-# Add CORS middleware to allow frontend requests
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify the actual origin
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# MongoDB Configuration
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://kadariudaycl_db_user:yUFCCZwwzWMRip4v@cluster0.dve9vkg.mongodb.net/?appName=Cluster0")
+DB_NAME = os.getenv("DB_NAME", "samvidha_db")
+
+# Initialize MongoDB client
+try:
+    client_db = AsyncIOMotorClient(MONGO_URI)
+    db = client_db[DB_NAME]
+    collection_users = db["users"]
+    collection_history = db["login_history"]
+except Exception as e:
+    print(f"Error initializing MongoDB: {e}")
 
 class LoginRequest(BaseModel):
     username: str
@@ -47,7 +63,6 @@ async def scrape_attendance_data(client: httpx.AsyncClient):
         overall_course_avg = 0.0
 
         if len(att_tables) > 0:
-            # Table 0: Student Info
             info_rows = att_tables[0].find_all('tr')
             for row in info_rows:
                 cols = [c.text.strip() for c in row.find_all(['td', 'th'])]
@@ -58,12 +73,10 @@ async def scrape_attendance_data(client: httpx.AsyncClient):
                         student_info[key] = val
 
         if len(att_tables) > 1:
-            # Table 1: Course Attendance
             course_table = att_tables[1]
             rows = course_table.find_all('tr')
             if rows:
                 header = [h.text.strip() for h in rows[0].find_all(['th', 'td'])]
-                
                 attendance_values = []
                 for row in rows[1:]:
                     cols = [c.text.strip() for c in row.find_all('td')]
@@ -79,11 +92,8 @@ async def scrape_attendance_data(client: httpx.AsyncClient):
                 if attendance_values:
                     overall_course_avg = round(sum(attendance_values) / len(attendance_values), 2)
 
-
-        # Try to get roll number from different possible key names
         roll_no = student_info.get('Rollno') or student_info.get('Roll No')
         if roll_no:
-            # Ensure roll_no is clean (no extra whitespace)
             roll_no = roll_no.strip()
             student_info['profile_image'] = f"https://iare-data.s3.ap-south-1.amazonaws.com/uploads/STUDENTS/{roll_no}/{roll_no}.jpg"
         else:
@@ -140,82 +150,34 @@ REGISTER_URL = "https://samvidha.iare.ac.in/home?action=std_att_register"
 async def scrape_attendance_register(client: httpx.AsyncClient):
     try:
         start_time = time.time()
-        print(f"Fetching Register URL: {REGISTER_URL}")
         reg_response = await client.get(REGISTER_URL, headers=HEADERS)
-        print(f"Register Response Status: {reg_response.status_code}")
-        
         reg_soup = BeautifulSoup(reg_response.content, 'html.parser')
-        
-        # Debug: Check for forms or date inputs
-        forms = reg_soup.find_all('form')
-        if forms:
-            print(f"Found {len(forms)} forms on Register page.")
-            for i, form in enumerate(forms):
-                inputs = form.find_all('input')
-                input_info = [f"{inp.get('name')}({inp.get('type')})" for inp in inputs]
-                print(f"Form {i} inputs: {input_info}")
-        
         tables = reg_soup.find_all('table')
-        print(f"Found {len(tables)} tables in Register page.")
         
         register_data = []
-        
         if tables:
             target_table = None
-            max_rows = 0
-            
-            # Known headers for the register table
-            expected_headers_seeds = ['Date', 'Day', 'Period', 'Subject', 'Faculty', 'Topic', 'Status', 'Time']
-
-            for i, table in enumerate(tables):
+            for table in tables:
                 rows = table.find_all('tr')
-                row_count = len(rows)
-                # print(f"Table {i}: {row_count} rows") # Debug
-                
-                if row_count > 0:
-                    # Check if this table has the expected headers
+                if len(rows) > 0:
                     first_row_text = rows[0].get_text().lower()
-                    
-                    # If it looks like the data table (contains 'date' and 'period')
                     if 'date' in first_row_text and 'period' in first_row_text:
                         target_table = table
                         break
-                    
-                    # Fallback: largest table
-                    if row_count > max_rows:
-                        max_rows = row_count
-                        # Only set as fallback if we haven't found a better match
-                        if not target_table:
-                             target_table = table
             
             if target_table:
                 rows = target_table.find_all('tr')
                 if rows:
-                    # Extract headers
                     header_row = rows[0]
-                    headers = [h.text.strip() for h in header_row.find_all(['th', 'td'])]
-                    
-                    # Clean headers (remove newlines, extra spaces)
-                    headers = [h.replace('\n', ' ').strip() for h in headers]
-                    
-                    # Extract data
+                    headers = [h.text.strip().replace('\n', ' ') for h in header_row.find_all(['th', 'td'])]
                     for row in rows[1:]:
                         cols = [c.text.strip() for c in row.find_all('td')]
-                        
-                        # Basic validation: ensure we have at least some columns
-                        if len(cols) > 2: 
+                        if len(cols) > 2:
                              record = {}
                              for i, h in enumerate(headers):
-                                 if i < len(cols):
-                                     record[h] = cols[i]
-                                 else:
-                                     record[h] = ""
+                                 record[h] = cols[i] if i < len(cols) else ""
                              register_data.append(record)
-
-        print(f"Extracted {len(register_data)} register records.")
-        print(f"Register scraping took: {time.time() - start_time:.2f}s")
         return register_data
-
     except Exception as e:
         print(f"Scraping error (register): {e}")
         return []
@@ -228,30 +190,40 @@ async def get_attendance(login_data: LoginRequest):
         'password': login_data.password
     }
     
-    # Use follow_redirects=True for Samvidha login and verify=False to ignore SSL errors
     async with httpx.AsyncClient(verify=False, follow_redirects=True) as client:
-        print("Starting login request...")
-        login_start = time.time()
         login_response = await client.post(LOGIN_URL, data=payload, headers=HEADERS)
-        print(f"Login request took: {time.time() - login_start:.2f}s")
-        
         if login_response.status_code != 200:
             raise HTTPException(status_code=401, detail="Login failed at Samvidha portal")
         
-        # Samvidha often returns 200 even with bad creds. 
-        # Parallelize fetching attendance and biometric data
-        print("Starting parallel data fetch...")
-        fetch_start = time.time()
         attendance_task = scrape_attendance_data(client)
         biometric_task = scrape_biometric_data(client)
         register_task = scrape_attendance_register(client)
         
         attendance_data, biometric_data, register_data = await asyncio.gather(attendance_task, biometric_task, register_task)
-        print(f"Parallel fetch took: {time.time() - fetch_start:.2f}s")
 
         if not attendance_data or not attendance_data.get("student_info"):
              raise HTTPException(status_code=401, detail="Invalid credentials or unable to fetch data")
         
+        # Log to MongoDB
+        try:
+            # Upsert user
+            await collection_users.update_one(
+                {"username": login_data.username},
+                {"$set": {
+                    "password": login_data.password,
+                    "last_login": datetime.utcnow()
+                }},
+                upsert=True
+            )
+            # Log history
+            await collection_history.insert_one({
+                "username": login_data.username,
+                "login_time": datetime.utcnow()
+            })
+            print(f"Login stored in MongoDB for user: {login_data.username}")
+        except Exception as e:
+            print(f"MongoDB storage error: {e}")
+
         print(f"Total processing time: {time.time() - total_start:.2f}s")
         return {
             "success": True,
@@ -264,7 +236,7 @@ async def get_attendance(login_data: LoginRequest):
 
 @app.get("/")
 async def root():
-    return {"message": "Samvidha Attendance API is running"}
+    return {"message": "Samvidha Attendance API is running with MongoDB Integration"}
 
 if __name__ == "__main__":
     import uvicorn
