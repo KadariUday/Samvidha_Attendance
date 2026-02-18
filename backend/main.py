@@ -10,6 +10,7 @@ import time
 import mysql.connector
 from mysql.connector import Error
 import os
+import urllib.parse
 
 # Suppress SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -26,12 +27,38 @@ app.add_middleware(
 )
 
 # MySQL Configuration
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', 'Uday@2006'),
-    'database': os.getenv('DB_NAME', 'samvidha_attendance')
-}
+# Priority 1: MYSQL_URL (common in cloud platforms like Railway)
+# Priority 2: Individual variables (DB_HOST, DB_USER, etc.)
+# Priority 3: Defaults
+MYSQL_URL = os.getenv('MYSQL_URL')
+
+if MYSQL_URL:
+    try:
+        url = urllib.parse.urlparse(MYSQL_URL)
+        DB_CONFIG = {
+            'host': url.hostname,
+            'user': url.username,
+            'password': url.password,
+            'database': url.path.lstrip('/'),
+            'port': url.port or 3306
+        }
+    except Exception as e:
+        print(f"Error parsing MYSQL_URL: {e}. Falling back to individual variables.")
+        DB_CONFIG = {
+            'host': os.getenv('DB_HOST', 'localhost'),
+            'user': os.getenv('DB_USER', 'root'),
+            'password': os.getenv('DB_PASSWORD', 'Uday@2006'),
+            'database': os.getenv('DB_NAME', 'samvidha_attendance'),
+            'port': int(os.getenv('DB_PORT', 3306))
+        }
+else:
+    DB_CONFIG = {
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'user': os.getenv('DB_USER', 'root'),
+        'password': os.getenv('DB_PASSWORD', 'Uday@2006'),
+        'database': os.getenv('DB_NAME', 'samvidha_attendance'),
+        'port': int(os.getenv('DB_PORT', 3306))
+    }
 
 def get_db_connection():
     try:
@@ -43,16 +70,22 @@ def get_db_connection():
 
 def init_db():
     try:
-        # Connect without database first to create it
-        temp_conn = mysql.connector.connect(
-            host=DB_CONFIG['host'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password']
-        )
-        temp_cursor = temp_conn.cursor()
-        temp_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
-        temp_cursor.close()
-        temp_conn.close()
+        # If we are using localhost/root, try to create the DB
+        # In cloud environments, the DB is usually pre-created or credentials don't allow CREATE DATABASE
+        if DB_CONFIG['host'] == 'localhost' or os.getenv('INIT_DB') == 'true':
+            try:
+                temp_conn = mysql.connector.connect(
+                    host=DB_CONFIG['host'],
+                    user=DB_CONFIG['user'],
+                    password=DB_CONFIG['password'],
+                    port=DB_CONFIG['port']
+                )
+                temp_cursor = temp_conn.cursor()
+                temp_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
+                temp_cursor.close()
+                temp_conn.close()
+            except Error as e:
+                print(f"Warning: Could not check/create database: {e}. Assuming it exists.")
 
         # Now connect to the actual database
         conn = get_db_connection()

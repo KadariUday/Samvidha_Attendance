@@ -7,3 +7,5 @@ pydantic
 gunicorn
 httpx
 mysql-connector-python
+flask
+python-dotenv
