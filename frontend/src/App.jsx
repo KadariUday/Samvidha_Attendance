@@ -13,6 +13,7 @@ import {
     XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Analytics } from '@vercel/analytics/react';
 
 // Main Application Component
 
@@ -265,6 +266,7 @@ const App = () => {
                         </button>
                     </form>
                 </motion.div>
+                <Analytics />
             </div>
         );
     }
@@ -641,6 +643,7 @@ const App = () => {
 
 
             </main>
+            <Analytics />
         </div>
     );
 };
