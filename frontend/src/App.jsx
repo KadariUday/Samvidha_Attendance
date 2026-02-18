@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import {
     User,
     Lock,
@@ -265,6 +266,7 @@ const App = () => {
                         </button>
                     </form>
                 </motion.div>
+                <Analytics />
             </div>
         );
     }
@@ -641,6 +643,7 @@ const App = () => {
 
 
             </main>
+            <Analytics />
         </div>
     );
 };
