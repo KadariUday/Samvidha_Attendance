@@ -6,6 +6,15 @@ python-multipart
 pydantic
 gunicorn
 httpx
+
+fastapi
+uvicorn
+requests
+beautifulsoup4
+python-multipart
+pydantic
+gunicorn
+httpx
 mysql-connector-python
 flask
 python-dotenv
