@@ -11,7 +11,9 @@ import {
     Fingerprint,
     ChevronRight,
     Loader2,
-    XCircle
+    XCircle,
+    Github,
+    Linkedin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -165,7 +167,7 @@ const App = () => {
 
     if (!isLoggedIn) {
         return (
-            <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
+            <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-slate-950">
                 {/* Background ambient shapes */}
                 <div className="login-bg-shape w-96 h-96 bg-primary/20 rounded-full top-[-100px] left-[-100px] absolute" />
                 <div
@@ -192,87 +194,90 @@ const App = () => {
                     </svg>
                 </div>
 
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="glass w-full max-w-md p-8 md:p-10 rounded-3xl relative z-10 border border-white/10 shadow-2xl backdrop-blur-xl"
-                >
-                    {/* Header Section */}
-                    <div className="text-center mb-10">
-                        <div className="mb-6 inline-flex p-3 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-white/5">
-                            <Fingerprint className="w-10 h-10 text-blue-400" />
+                <div className="flex-1 flex items-center justify-center w-full">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5 }}
+                        className="glass w-full max-w-md p-8 md:p-10 rounded-3xl relative z-10 border border-white/10 shadow-2xl backdrop-blur-xl"
+                    >
+                        {/* Header Section */}
+                        <div className="text-center mb-10">
+                            <div className="mb-6 inline-flex p-3 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 border border-white/5">
+                                <Fingerprint className="w-10 h-10 text-blue-400" />
+                            </div>
+                            <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
+                                Samvidha
+                                <span className="block text-2xl font-normal text-blue-300/90 mt-1">Attendance</span>
+                            </h1>
+                            <p className="text-slate-400 text-sm mt-4">Welcome! Please log in to continue.</p>
                         </div>
-                        <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
-                            Samvidha
-                            <span className="block text-2xl font-normal text-blue-300/90 mt-1">Attendance</span>
-                        </h1>
-                        <p className="text-slate-400 text-sm mt-4">Welcome! Please log in to continue.</p>
-                    </div>
 
-                    <form onSubmit={handleLogin} className="space-y-6">
-                        <div className="space-y-4">
-                            <div className="group">
-                                <div className="relative">
-                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
-                                    <input
-                                        type="text"
-                                        required
-                                        value={credentials.username}
-                                        onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                                        className="w-full glass-input rounded-2xl py-4 pl-12 pr-4 text-slate-200 placeholder:text-slate-500 outline-none"
-                                        placeholder="Username"
-                                    />
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            <div className="space-y-4">
+                                <div className="group">
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                                        <input
+                                            type="text"
+                                            required
+                                            value={credentials.username}
+                                            onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                                            className="w-full glass-input rounded-2xl py-4 pl-12 pr-4 text-slate-200 placeholder:text-slate-500 outline-none"
+                                            placeholder="Username"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="group">
+                                    <div className="relative">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-purple-400 transition-colors" />
+                                        <input
+                                            type="password"
+                                            required
+                                            value={credentials.password}
+                                            onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                                            className="w-full glass-input rounded-2xl py-4 pl-12 pr-4 text-slate-200 placeholder:text-slate-500 outline-none"
+                                            placeholder="Password"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="group">
-                                <div className="relative">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-purple-400 transition-colors" />
-                                    <input
-                                        type="password"
-                                        required
-                                        value={credentials.password}
-                                        onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                                        className="w-full glass-input rounded-2xl py-4 pl-12 pr-4 text-slate-200 placeholder:text-slate-500 outline-none"
-                                        placeholder="Password"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {error && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-sm flex items-center gap-3"
-                            >
-                                <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-400" />
-                                {error}
-                            </motion.div>
-                        )}
-
-                        <button
-                            disabled={isLoading}
-                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 group active:scale-[0.98]"
-                        >
-                            {isLoading ? (
-                                <Loader2 className="w-5 h-5 animate-spin text-white/80" />
-                            ) : (
-                                <>
-                                    LOGIN
-                                </>
+                            {error && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-sm flex items-center gap-3"
+                                >
+                                    <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-400" />
+                                    {error}
+                                </motion.div>
                             )}
-                        </button>
-                    </form>
-                </motion.div>
+
+                            <button
+                                disabled={isLoading}
+                                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 group active:scale-[0.98]"
+                            >
+                                {isLoading ? (
+                                    <Loader2 className="w-5 h-5 animate-spin text-white/80" />
+                                ) : (
+                                    <>
+                                        LOGIN
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    </motion.div>
+                </div>
+                <Footer />
                 <Analytics />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 relative overflow-x-hidden page-container">
+        <div className="min-h-screen flex flex-col bg-slate-950 relative overflow-x-hidden page-container">
             {/* Ambient Background */}
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/10 blur-[120px]" />
@@ -365,7 +370,7 @@ const App = () => {
             </div>
 
             {/* 3D Content Container */}
-            <main className="max-w-7xl mx-auto p-4 md:p-8 relative z-10 perspective-1000">
+            <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 relative z-10 perspective-1000">
                 <AnimatePresence mode="wait" custom={direction}>
                     <motion.div
                         key={activeTab}
@@ -643,10 +648,45 @@ const App = () => {
 
 
             </main>
+            <Footer />
             <Analytics />
         </div>
     );
 };
+
+const Footer = () => (
+    <footer className="w-full py-8 mt-auto border-t border-white/5 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
+            <p className="text-slate-500 text-sm font-medium">
+                Maintained By <span className="text-blue-400">Kadari Uday</span>
+            </p>
+
+            <div className="flex items-center gap-4">
+                <a
+                    href="https://github.com/KadariUday"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/10 transition-all active:scale-95 group"
+                    title="GitHub"
+                >
+                    <Github className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-semibold tracking-wide">GitHub</span>
+                </a>
+
+                <a
+                    href="https://www.linkedin.com/in/kadariuday"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:text-[#0077b5] hover:bg-[#0077b5]/10 hover:border-[#0077b5]/20 transition-all active:scale-95 group"
+                    title="LinkedIn"
+                >
+                    <Linkedin className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-semibold tracking-wide">LinkedIn</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+);
 
 const calculateBunkStats = (conductedStr, attendedStr, targetPct = 75) => {
     const conducted = parseInt(conductedStr);
