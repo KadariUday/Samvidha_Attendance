@@ -13,52 +13,13 @@ import {
     Loader2,
     XCircle,
     Github,
-    Linkedin
+    Linkedin,
+    Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+
 // Main Application Component
-
-// Helper to transform register data (remove Date column and decrement dynamic date headers)
-const transformRegisterData = (registerData) => {
-    if (!registerData || registerData.length === 0) return [];
-
-    const monthMap = {
-        'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-        'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-    };
-    const reverseMonthMap = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    const processKey = (key) => {
-        // Regex for DD-MMM format (e.g., 01-Dec)
-        const dateMatch = key.match(/^(\d{1,2})-(\w{3})$/);
-        if (dateMatch) {
-            const day = parseInt(dateMatch[1]);
-            const monthStr = dateMatch[2];
-            const month = monthMap[monthStr];
-
-            if (month !== undefined) {
-                // Use current year or a fixed year for calculation
-                const date = new Date(new Date().getFullYear(), month, day);
-                date.setDate(date.getDate() + 1);
-
-                const newDay = date.getDate().toString().padStart(2, '0');
-                const newMonth = reverseMonthMap[date.getMonth()];
-                return `${newDay}-${newMonth}`;
-            }
-        }
-        return key;
-    };
-
-    return registerData.map(row => {
-        const newRow = {};
-        Object.entries(row).forEach(([key, value]) => {
-            if (key.toLowerCase() === 'date') return; // Remove the specific "Date" column header
-            newRow[processKey(key)] = value;
-        });
-        return newRow;
-    });
-};
 
 const App = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -82,10 +43,6 @@ const App = () => {
             });
             const result = await response.json();
             if (result.success) {
-                // Apply transformations to register data
-                if (result.data.register) {
-                    result.data.register = transformRegisterData(result.data.register);
-                }
                 setData(result.data);
                 setLastUpdated(new Date().toLocaleTimeString());
                 return true;
@@ -358,11 +315,11 @@ const App = () => {
                         <button
                             onClick={() => switchTab('register')}
                             className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all duration-300 flex items-center gap-1 flex-shrink-0 border ${activeTab === 'register'
-                                ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/25'
+                                ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/25'
                                 : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
                                 }`}
                         >
-                            <BookOpen className="w-4 h-4 flex-shrink-0" />
+                            <Calendar className="w-4 h-4 flex-shrink-0" />
                             <span className="whitespace-nowrap">Attendance Register</span>
                         </button>
                     </nav>
@@ -599,60 +556,87 @@ const App = () => {
                                     })}
                                 </div>
                             </div>
-                        ) : (
+                        ) : activeTab === 'register' ? (
                             <div className="space-y-8">
                                 {/* Register Header */}
-                                <div className="glass neon-border-purple rounded-3xl p-8 relative overflow-hidden">
-                                    <div className="relative z-10 flex items-center justify-between">
-                                        <div>
-                                            <h2 className="text-3xl font-bold text-white mb-2">Attendance Register</h2>
-                                            <p className="text-slate-400">Detailed daily attendance logs</p>
-                                        </div>
-                                        <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
-                                            <BookOpen className="w-8 h-8 text-purple-400" />
-                                        </div>
+                                <div className="glass neon-border-indigo rounded-3xl p-8 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                                    <div className="relative z-10">
+                                        <h2 className="text-3xl font-bold text-white mb-2">Attendance Register</h2>
+                                        <p className="text-slate-400">Detailed period-wise attendance history</p>
                                     </div>
                                 </div>
 
-                                <div className="glass neon-border-purple rounded-3xl overflow-hidden p-1">
-                                    <div className="overflow-x-auto">
-                                        {data.register && data.register.length > 0 ? (
-                                            <table className="w-full text-left border-collapse">
-                                                <thead className="sticky top-0 z-20">
-                                                    <tr className="text-slate-400 text-sm border-b border-white/5 bg-slate-900/95 backdrop-blur-md">
-                                                        {Object.keys(data.register[0]).map((key, idx) => (
-                                                            <th key={idx} className="p-4 font-medium tracking-wide first:pl-6 last:pr-6 whitespace-nowrap">{key}</th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="text-sm">
-                                                    {data.register.map((row, idx) => (
-                                                        <tr key={idx} className="group hover:bg-white/[0.02] border-b border-white/5 last:border-0 transition-colors">
-                                                            {Object.entries(row).map(([key, val], vIdx) => {
-                                                                const isAbsent = typeof val === 'string' && (val.includes('A (') || val.toLowerCase().includes('absent'));
+                                {/* Register Table */}
+                                <div className="glass neon-border-indigo rounded-3xl overflow-hidden p-1">
+                                    <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                                        <div className="flex items-center gap-3">
+                                            <Calendar className="w-5 h-5 text-indigo-400" />
+                                            <h3 className="text-xl font-bold text-white tracking-wide">Historical Logs</h3>
+                                        </div>
+                                        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">
+                                            Scroll laterally for more dates →
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="w-full text-left border-collapse table-fixed min-w-[1200px]">
+                                            <thead>
+                                                <tr className="text-slate-400 text-[10px] uppercase tracking-wider border-b border-white/5 bg-slate-900/40">
+                                                    {(data.register && data.register.length > 0) ?
+                                                        Object.keys(data.register[0]).map((header, idx) => (
+                                                            <th key={idx} className={`p-4 font-bold ${header === 'Subject' ? 'sticky left-0 z-20 bg-slate-900/90 backdrop-blur-md w-64' :
+                                                                header === 'S.No' || header === 'Date' ? 'w-16 text-center' : 'w-12 text-center'
+                                                                }`}>
+                                                                {header}
+                                                            </th>
+                                                        ))
+                                                        : <th className="p-6 font-medium tracking-wide">No Data Available</th>
+                                                    }
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-[11px] md:text-xs">
+                                                {data.register && data.register.length > 0 ? (
+                                                    data.register.map((entry, rowIdx) => (
+                                                        <tr key={rowIdx} className="group transition-colors border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                                                            {Object.entries(entry).map(([key, val], colIdx) => {
+                                                                const isHeader = key === 'Subject' || key === 'S.No' || key === 'Date';
+                                                                const valStr = val.toString();
+                                                                const isAbsent = !isHeader && (valStr.includes('A') || valStr.toLowerCase().includes('absent'));
+                                                                const isPresent = !isHeader && !isAbsent && !isNaN(val) && val !== '' && val !== '-' && val !== '0';
+
                                                                 return (
-                                                                    <td
-                                                                        key={vIdx}
-                                                                        className={`p-4 first:pl-6 last:pr-6 whitespace-nowrap transition-colors ${isAbsent ? 'text-rose-400 font-bold' : 'text-slate-300'
-                                                                            }`}
-                                                                    >
-                                                                        {val}
+                                                                    <td key={colIdx} className={`p-3 relative ${key === 'Subject' ? 'sticky left-0 z-10 bg-slate-950/80 backdrop-blur-md font-semibold text-white' : 'text-center'
+                                                                        }`}>
+                                                                        <div className={`
+                                                                            flex flex-col items-center justify-center rounded-lg py-1.5 transition-all
+                                                                            ${isAbsent ? 'bg-red-500/10 text-red-400 border border-red-500/20' : ''}
+                                                                            ${isPresent ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' : ''}
+                                                                            ${!isAbsent && !isPresent && !isHeader ? 'text-slate-600 opacity-40' : ''}
+                                                                        `}>
+                                                                            {val}
+                                                                        </div>
                                                                     </td>
                                                                 );
                                                             })}
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        ) : (
-                                            <div className="p-8 text-center text-slate-400">
-                                                <p>No register data found or unable to fetch.</p>
-                                            </div>
-                                        )}
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan="100%" className="p-12 text-center text-slate-500">
+                                                            <div className="flex flex-col items-center gap-3">
+                                                                <AlertCircle className="w-10 h-10 opacity-20" />
+                                                                <p>No register entries found for this session.</p>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        ) : null}
                     </motion.div>
                 </AnimatePresence>
 
@@ -660,7 +644,7 @@ const App = () => {
             </main>
             <Footer />
             <Analytics />
-        </div>
+        </div >
     );
 };
 

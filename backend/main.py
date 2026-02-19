@@ -10,10 +10,11 @@ from typing import List, Dict, Any
 import time
 import os
 import sys
-from motor.motor_asyncio import AsyncIOMotorClient
+from typing import List, Dict, Any
+import time
+import os
 from datetime import datetime
 from dotenv import load_dotenv
-import certifi
 
 # Force UTF-8 output to avoid UnicodeEncodeError on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -36,50 +37,7 @@ else:
 # Suppress SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# MongoDB Configuration
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://kadariudaycl_db_user:yUFCCZwwzWMRip4v@cluster0.dve9vkg.mongodb.net/?appName=Cluster0")
-DB_NAME = os.getenv("DB_NAME", "samvidha_db")
-
-# MongoDB globals
-client_db = None
-db = None
-collection_users = None
-collection_history = None
-
-async def init_mongo():
-    """Initialize MongoDB connection. Returns True on success."""
-    global client_db, db, collection_users, collection_history
-    try:
-        print(f"Connecting to MongoDB database: {DB_NAME} ...")
-        client_db = AsyncIOMotorClient(
-            MONGO_URI,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=10000,
-            tlsCAFile=certifi.where()
-        )
-        await client_db.admin.command('ping')
-        db = client_db[DB_NAME]
-        collection_users = db["users"]
-        collection_history = db["login_history"]
-        print(f"[SUCCESS] Connected to MongoDB: {DB_NAME}")
-        return True
-    except Exception as e:
-        print(f"[ERROR] MongoDB connection failed: {e}")
-        print(">>> IMPORTANT: Make sure your IP is whitelisted in MongoDB Atlas (Network Access)")
-        print(f">>> DB Name: {DB_NAME}, URI prefix: {MONGO_URI[:40]}...")
-        return False
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Manage startup and shutdown lifecycle."""
-    await init_mongo()
-    yield
-    if client_db:
-        client_db.close()
-        print("MongoDB connection closed.")
-
-app = FastAPI(title="Samvidha Attendance API", lifespan=lifespan)
+app = FastAPI(title="Samvidha Attendance API")
 
 # Add CORS middleware
 app.add_middleware(
@@ -97,6 +55,7 @@ class LoginRequest(BaseModel):
 LOGIN_URL = "https://samvidha.iare.ac.in/pages/login/checkUser.php"
 ATTENDANCE_URL = "https://samvidha.iare.ac.in/home?action=stud_att_STD"
 BIOMETRIC_URL = "https://samvidha.iare.ac.in/home?action=std_bio"
+REGISTER_URL = "https://samvidha.iare.ac.in/home?action=std_att_register"
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -197,42 +156,106 @@ async def scrape_biometric_data(client: httpx.AsyncClient):
         print(f"Scraping error (biometric): {e}")
         return None
 
-REGISTER_URL = "https://samvidha.iare.ac.in/home?action=std_att_register"
-
 async def scrape_attendance_register(client: httpx.AsyncClient):
     try:
         start_time = time.time()
         reg_response = await client.get(REGISTER_URL, headers=HEADERS)
         reg_soup = BeautifulSoup(reg_response.content, 'html.parser')
-        tables = reg_soup.find_all('table')
         
-        register_data = []
-        if tables:
-            target_table = None
-            for table in tables:
-                rows = table.find_all('tr')
-                if len(rows) > 0:
-                    first_row_text = rows[0].get_text().lower()
-                    if 'date' in first_row_text and 'period' in first_row_text:
-                        target_table = table
-                        break
+        all_tables = reg_soup.find_all('table')
+        print(f"DEBUG: Found {len(all_tables)} tables on register page")
+        
+        reg_table = None
+        for i, table in enumerate(all_tables):
+            rows = table.find_all('tr')
+            if not rows: continue
             
-            if target_table:
-                rows = target_table.find_all('tr')
-                if rows:
-                    header_row = rows[0]
-                    headers = [h.text.strip().replace('\n', ' ') for h in header_row.find_all(['th', 'td'])]
-                    for row in rows[1:]:
-                        cols = [c.text.strip() for c in row.find_all('td')]
-                        if len(cols) > 2:
-                             record = {}
-                             for i, h in enumerate(headers):
-                                 record[h] = cols[i] if i < len(cols) else ""
-                             register_data.append(record)
-        return register_data
+            # Check if this table looks like the register (has 'Subject' and many columns)
+            header_text = rows[0].get_text()
+            print(f"DEBUG: Table {i} first row text: {header_text[:100]}...")
+            
+            if 'Subject' in header_text:
+                reg_table = table
+                print(f"DEBUG: Selected Table {i} based on 'Subject' keyword")
+                break
+        
+        # Fallback: find the table with the most columns
+        if not reg_table and all_tables:
+            reg_table = max(all_tables, key=lambda t: len(t.find_all('tr')[0].find_all(['td', 'th'])) if t.find_all('tr') else 0)
+            print("DEBUG: Using fallback: Table with most columns")
+
+        register_data = []
+        if reg_table:
+            rows = reg_table.find_all('tr')
+            header_row = None
+            for row in rows:
+                if 'Subject' in row.get_text():
+                    header_row = row
+                    break
+            
+            if not header_row and rows:
+                header_row = rows[0]
+
+            if header_row:
+                raw_header = [h.text.strip() for h in header_row.find_all(['th', 'td'])]
+                
+                # Transform headers: Filter 'Date' and rename '01-Dec' to 'Dec 2' (shifted 1 day forward)
+                header = []
+                for h in raw_header:
+                    if h == 'Date':
+                        continue
+                    # Check if it matches DD-MMM format
+                    try:
+                        pts = h.split('-')
+                        if len(pts) == 2 and pts[0].isdigit():
+                            day = int(pts[0]) + 1 # Shift forward by 1 day
+                            month = pts[1]
+                            header.append(f"{month} {day}")
+                        else:
+                            header.append(h)
+                    except:
+                        header.append(h)
+
+                print(f"DEBUG: Scraped Header ({len(header)} cols): {header}")
+                
+                start_idx = rows.index(header_row) + 1
+                for i, row in enumerate(rows[start_idx:]):
+                    cols = [c.get_text(separator=" ").strip().replace('\n', ' ') for c in row.find_all(['td', 'th'])]
+                    if len(cols) > 0:
+                        # Extract only columns that aren't the 'Date' column (index 2 usually)
+                        # More robust: use index of 'Date' in raw_header
+                        date_idx = raw_header.index('Date') if 'Date' in raw_header else -1
+                        if date_idx != -1:
+                            target_cols = [v for j, v in enumerate(cols) if j != date_idx]
+                        else:
+                            target_cols = cols
+
+                        if len(target_cols) < len(header):
+                            target_cols = target_cols + [""] * (len(header) - len(target_cols))
+                        elif len(target_cols) > len(header):
+                            target_cols = target_cols[:len(header)]
+                        
+                        entry = dict(zip(header, target_cols))
+                        register_data.append(entry)
+                    else:
+                        print(f"DEBUG: Row {i} has 0 columns")
+                
+                print(f"DEBUG: Scraped {len(register_data)} rows")
+            
+            if len(register_data) == 0:
+                with open("debug_register.html", "w", encoding="utf-8") as f:
+                    f.write(reg_soup.prettify())
+                print("DEBUG: Saved register page HTML to debug_register.html for inspection")
+            
+            print(f"Register scraping took: {time.time() - start_time:.2f}s")
+            return register_data
+        
+        print("DEBUG: No suitable table found for register")
+        return []
     except Exception as e:
         print(f"Scraping error (register): {e}")
         return []
+
 
 @app.post("/api/attendance")
 async def get_attendance(login_data: LoginRequest):
@@ -251,53 +274,17 @@ async def get_attendance(login_data: LoginRequest):
         biometric_task = scrape_biometric_data(client)
         register_task = scrape_attendance_register(client)
         
-        attendance_data, biometric_data, register_data = await asyncio.gather(attendance_task, biometric_task, register_task)
+        attendance_data, biometric_data, register_data = await asyncio.gather(
+            attendance_task, 
+            biometric_task,
+            register_task
+        )
 
         if not attendance_data or not attendance_data.get("student_info"):
              raise HTTPException(status_code=401, detail="Invalid credentials or unable to fetch data")
         
-        # Save to MongoDB
-        try:
-            # Attempt re-init if not connected
-            if collection_users is None:
-                print("[WARN] MongoDB not ready, retrying connection...")
-                await init_mongo()
-
-            if collection_users is not None:
-                student_info = attendance_data.get("student_info", {})
-
-                # Full user document to upsert
-                user_data = {
-                    "username": login_data.username,
-                    "password": login_data.password,   # Plain text (no hash)
-                    "last_login": datetime.utcnow(),
-                    "student_profile": student_info
-                }
-                if biometric_data:
-                    user_data["biometric_summary"] = biometric_data
-
-                await collection_users.update_one(
-                    {"username": login_data.username},
-                    {"$set": user_data},
-                    upsert=True
-                )
-
-                # Login history entry
-                history_entry = {
-                    "username": login_data.username,
-                    "login_time": datetime.utcnow(),
-                    "status": "success",
-                    "student_name": student_info.get("Name", student_info.get("Student Name", "Unknown"))
-                }
-                await collection_history.insert_one(history_entry)
-                print(f"[SUCCESS] Stored user & history in MongoDB for: {login_data.username}")
-            else:
-                print("[WARN] MongoDB unavailable - data NOT saved. Check IP whitelist in Atlas.")
-        except Exception as e:
-            print(f"[ERROR] MongoDB storage error: {e}")
-
         print(f"Total processing time: {time.time() - total_start:.2f}s")
-        return {
+        response_payload = {
             "success": True,
             "data": {
                 **attendance_data,
@@ -305,10 +292,12 @@ async def get_attendance(login_data: LoginRequest):
                 "register": register_data
             }
         }
+        print(f"DEBUG: Returning keys: {list(response_payload['data'].keys())}")
+        return response_payload
 
 @app.get("/")
 async def root():
-    return {"message": "Samvidha Attendance API is running with MongoDB Integration"}
+    return {"message": "Samvidha Attendance API is running"}
 
 if __name__ == "__main__":
     import uvicorn
