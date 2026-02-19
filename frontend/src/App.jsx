@@ -419,7 +419,7 @@ const App = () => {
                                         <NeonStatCard
                                             title="Biometric Goal"
                                             value={`Attend ${calculateBunkStats(data.biometric.biometric_adjusted, data.biometric.biometric_present, 75).count} Days`}
-                                            description="Reach 75% Biometric"
+                                            description="To Reach 75% Biometric"
                                             icon={<Fingerprint className="w-6 h-6 text-emerald-400" />}
                                             color="emerald"
                                             delay={0.25}
