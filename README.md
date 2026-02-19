@@ -44,4 +44,4 @@ npm run dev
 This tool is for educational purposes only. Use it responsibly and ensure you comply with your institution's policies regarding automated access to their portals.
 
 ---
-*Created by Cherry*
+*Created by Kadari Uday*
