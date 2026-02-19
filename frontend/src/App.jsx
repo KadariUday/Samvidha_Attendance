@@ -415,6 +415,16 @@ const App = () => {
                                         color="purple"
                                         delay={0.2}
                                     />
+                                    {data.biometric && data.biometric.biometric_percentage < 75 && (
+                                        <NeonStatCard
+                                            title="Biometric Goal"
+                                            value={`Attend ${calculateBunkStats(data.biometric.biometric_adjusted, data.biometric.biometric_present, 75).count} Days`}
+                                            description="Reach 75% Biometric"
+                                            icon={<Fingerprint className="w-6 h-6 text-emerald-400" />}
+                                            color="emerald"
+                                            delay={0.25}
+                                        />
+                                    )}
                                     <NeonStatCard
                                         title="Days Present"
                                         value={data.biometric?.biometric_present || 0}
@@ -707,7 +717,7 @@ const calculateBunkStats = (conductedStr, attendedStr, targetPct = 75) => {
     }
 };
 
-const NeonStatCard = ({ title, value, icon, color, delay }) => (
+const NeonStatCard = ({ title, value, description, icon, color, delay }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -724,12 +734,17 @@ const NeonStatCard = ({ title, value, icon, color, delay }) => (
             </div>
         </div>
 
-        <div className="z-10 flex items-baseline gap-2">
-            <h4 className="text-3xl md:text-4xl font-bold text-white tracking-tight neon-text-glow">
-                {value}
-            </h4>
-            {title.includes("Overall") && (
-                <TrendingUp className="w-5 h-5 text-green-400 mb-1" />
+        <div className="z-10 flex flex-col">
+            <div className="flex items-baseline gap-2">
+                <h4 className="text-3xl md:text-4xl font-bold text-white tracking-tight neon-text-glow">
+                    {value}
+                </h4>
+                {title.includes("Overall") && (
+                    <TrendingUp className="w-5 h-5 text-green-400 mb-1" />
+                )}
+            </div>
+            {description && (
+                <p className="text-xs text-slate-500 mt-1 font-medium">{description}</p>
             )}
         </div>
     </motion.div>
