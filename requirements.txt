@@ -9,3 +9,4 @@ httpx
 motor
 dnspython
 python-dotenv
+certifi

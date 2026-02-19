@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 import httpx
 import asyncio
 from bs4 import BeautifulSoup
@@ -8,13 +9,77 @@ import urllib3
 from typing import List, Dict, Any
 import time
 import os
+import sys
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
+from dotenv import load_dotenv
+import certifi
+
+# Force UTF-8 output to avoid UnicodeEncodeError on Windows
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
+# Load environment variables - search multiple locations
+for candidate in [
+    os.path.join(os.getcwd(), '.env'),
+    os.path.join(os.path.dirname(os.getcwd()), '.env'),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'),
+]:
+    if os.path.exists(candidate):
+        load_dotenv(candidate)
+        print(f"Loaded .env from: {candidate}")
+        break
+else:
+    load_dotenv()
+    print("Loaded .env from default location")
 
 # Suppress SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-app = FastAPI(title="Samvidha Attendance API")
+# MongoDB Configuration
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://kadariudaycl_db_user:yUFCCZwwzWMRip4v@cluster0.dve9vkg.mongodb.net/?appName=Cluster0")
+DB_NAME = os.getenv("DB_NAME", "samvidha_db")
+
+# MongoDB globals
+client_db = None
+db = None
+collection_users = None
+collection_history = None
+
+async def init_mongo():
+    """Initialize MongoDB connection. Returns True on success."""
+    global client_db, db, collection_users, collection_history
+    try:
+        print(f"Connecting to MongoDB database: {DB_NAME} ...")
+        client_db = AsyncIOMotorClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            tlsCAFile=certifi.where()
+        )
+        await client_db.admin.command('ping')
+        db = client_db[DB_NAME]
+        collection_users = db["users"]
+        collection_history = db["login_history"]
+        print(f"[SUCCESS] Connected to MongoDB: {DB_NAME}")
+        return True
+    except Exception as e:
+        print(f"[ERROR] MongoDB connection failed: {e}")
+        print(">>> IMPORTANT: Make sure your IP is whitelisted in MongoDB Atlas (Network Access)")
+        print(f">>> DB Name: {DB_NAME}, URI prefix: {MONGO_URI[:40]}...")
+        return False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage startup and shutdown lifecycle."""
+    await init_mongo()
+    yield
+    if client_db:
+        client_db.close()
+        print("MongoDB connection closed.")
+
+app = FastAPI(title="Samvidha Attendance API", lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
@@ -24,19 +89,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# MongoDB Configuration
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://kadariudaycl_db_user:yUFCCZwwzWMRip4v@cluster0.dve9vkg.mongodb.net/?appName=Cluster0")
-DB_NAME = os.getenv("DB_NAME", "samvidha_db")
-
-# Initialize MongoDB client
-try:
-    client_db = AsyncIOMotorClient(MONGO_URI)
-    db = client_db[DB_NAME]
-    collection_users = db["users"]
-    collection_history = db["login_history"]
-except Exception as e:
-    print(f"Error initializing MongoDB: {e}")
 
 class LoginRequest(BaseModel):
     username: str
@@ -204,25 +256,45 @@ async def get_attendance(login_data: LoginRequest):
         if not attendance_data or not attendance_data.get("student_info"):
              raise HTTPException(status_code=401, detail="Invalid credentials or unable to fetch data")
         
-        # Log to MongoDB
+        # Save to MongoDB
         try:
-            # Upsert user
-            await collection_users.update_one(
-                {"username": login_data.username},
-                {"$set": {
-                    "password": login_data.password,
-                    "last_login": datetime.utcnow()
-                }},
-                upsert=True
-            )
-            # Log history
-            await collection_history.insert_one({
-                "username": login_data.username,
-                "login_time": datetime.utcnow()
-            })
-            print(f"Login stored in MongoDB for user: {login_data.username}")
+            # Attempt re-init if not connected
+            if collection_users is None:
+                print("[WARN] MongoDB not ready, retrying connection...")
+                await init_mongo()
+
+            if collection_users is not None:
+                student_info = attendance_data.get("student_info", {})
+
+                # Full user document to upsert
+                user_data = {
+                    "username": login_data.username,
+                    "password": login_data.password,   # Plain text (no hash)
+                    "last_login": datetime.utcnow(),
+                    "student_profile": student_info
+                }
+                if biometric_data:
+                    user_data["biometric_summary"] = biometric_data
+
+                await collection_users.update_one(
+                    {"username": login_data.username},
+                    {"$set": user_data},
+                    upsert=True
+                )
+
+                # Login history entry
+                history_entry = {
+                    "username": login_data.username,
+                    "login_time": datetime.utcnow(),
+                    "status": "success",
+                    "student_name": student_info.get("Name", student_info.get("Student Name", "Unknown"))
+                }
+                await collection_history.insert_one(history_entry)
+                print(f"[SUCCESS] Stored user & history in MongoDB for: {login_data.username}")
+            else:
+                print("[WARN] MongoDB unavailable - data NOT saved. Check IP whitelist in Atlas.")
         except Exception as e:
-            print(f"MongoDB storage error: {e}")
+            print(f"[ERROR] MongoDB storage error: {e}")
 
         print(f"Total processing time: {time.time() - total_start:.2f}s")
         return {
