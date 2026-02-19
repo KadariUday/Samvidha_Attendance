@@ -723,28 +723,28 @@ const NeonStatCard = ({ title, value, description, icon, color, delay }) => (
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay }}
         whileHover={{ scale: 1.02, y: -5 }}
-        className={`glass neon-border-${color} p-6 rounded-3xl relative overflow-hidden group flex flex-col justify-between h-32 md:h-40`}
+        className={`glass neon-border-${color} p-5 rounded-3xl relative overflow-hidden group flex flex-col justify-between h-32 md:h-36`}
     >
         <div className={`absolute -right-6 -top-6 w-24 h-24 bg-${color}-500/20 rounded-full blur-2xl group-hover:bg-${color}-500/30 transition-colors`} />
 
-        <div className="flex justify-between items-start z-10">
-            <span className="text-slate-400 text-sm font-medium tracking-wide">{title}</span>
-            <div className={`p-2 rounded-lg border border-${color}-500/20 bg-${color}-500/10`}>
+        <div className="flex justify-between items-start z-10 mb-2">
+            <span className="text-slate-400 text-xs font-medium tracking-wide uppercase">{title}</span>
+            <div className={`p-1.5 rounded-lg border border-${color}-500/20 bg-${color}-500/10`}>
                 {icon}
             </div>
         </div>
 
-        <div className="z-10 flex flex-col">
-            <div className="flex items-baseline gap-2">
-                <h4 className="text-3xl md:text-4xl font-bold text-white tracking-tight neon-text-glow">
+        <div className="z-10 flex flex-col justify-end flex-grow">
+            <div className="flex items-baseline gap-2 flex-wrap">
+                <h4 className="text-xl md:text-2xl font-bold text-white tracking-tight neon-text-glow break-words leading-tight">
                     {value}
                 </h4>
                 {title.includes("Overall") && (
-                    <TrendingUp className="w-5 h-5 text-green-400 mb-1" />
+                    <TrendingUp className="w-4 h-4 text-green-400 mb-1" />
                 )}
             </div>
             {description && (
-                <p className="text-xs text-slate-500 mt-1 font-medium">{description}</p>
+                <p className="text-[10px] md:text-xs text-slate-500 mt-1 font-medium truncate">{description}</p>
             )}
         </div>
     </motion.div>
