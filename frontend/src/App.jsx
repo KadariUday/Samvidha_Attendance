@@ -585,7 +585,7 @@ const App = () => {
                                                 <tr className="text-slate-400 text-[10px] uppercase tracking-wider border-b border-white/5 bg-slate-900/40">
                                                     {(data.register && data.register.length > 0) ?
                                                         Object.keys(data.register[0]).map((header, idx) => (
-                                                            <th key={idx} className={`p-4 font-bold ${header === 'Subject' ? 'sticky left-0 z-20 bg-slate-900/90 backdrop-blur-md w-64' :
+                                                            <th key={idx} className={`p-4 font-bold border-r border-white/10 last:border-r-0 ${header === 'Subject' ? 'sticky left-0 z-20 bg-slate-900/90 backdrop-blur-md w-64 border-r border-white/20' :
                                                                 header === 'S.No' || header === 'Date' ? 'w-16 text-center' : 'w-12 text-center'
                                                                 }`}>
                                                                 {header}
@@ -606,7 +606,7 @@ const App = () => {
                                                                 const isPresent = !isHeader && !isAbsent && !isNaN(val) && val !== '' && val !== '-' && val !== '0';
 
                                                                 return (
-                                                                    <td key={colIdx} className={`p-3 relative ${key === 'Subject' ? 'sticky left-0 z-10 bg-slate-950/80 backdrop-blur-md font-semibold text-white' : 'text-center'
+                                                                    <td key={colIdx} className={`p-3 relative border-r border-white/5 last:border-r-0 ${key === 'Subject' ? 'sticky left-0 z-10 bg-slate-950/80 backdrop-blur-md font-semibold text-white border-r border-white/10' : 'text-center'
                                                                         }`}>
                                                                         <div className={`
                                                                             flex flex-col items-center justify-center rounded-lg py-1.5 transition-all
