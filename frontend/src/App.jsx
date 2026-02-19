@@ -14,7 +14,8 @@ import {
     XCircle,
     Github,
     Linkedin,
-    Calendar
+    Calendar,
+    History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -115,7 +116,7 @@ const App = () => {
 
     const switchTab = (newTab) => {
         if (newTab === activeTab) return;
-        const tabs = ['home', 'bunks', 'register'];
+        const tabs = ['home', 'bunks', 'register', 'history'];
         const oldIndex = tabs.indexOf(activeTab);
         const newIndex = tabs.indexOf(newTab);
         setDirection(newIndex > oldIndex ? 1 : -1);
@@ -321,6 +322,16 @@ const App = () => {
                         >
                             <Calendar className="w-4 h-4 flex-shrink-0" />
                             <span className="whitespace-nowrap">Attendance Register</span>
+                        </button>
+                        <button
+                            onClick={() => switchTab('history')}
+                            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all duration-300 flex items-center gap-1 flex-shrink-0 border ${activeTab === 'history'
+                                ? 'bg-fuchsia-600 border-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/25'
+                                : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <TrendingUp className="w-4 h-4 flex-shrink-0" />
+                            <span className="whitespace-nowrap">History</span>
                         </button>
                     </nav>
                 </div>
@@ -637,6 +648,29 @@ const App = () => {
                                 </div>
                             </div>
                         ) : null}
+
+                        {/* History Dashboard */}
+                        {activeTab === 'history' && (
+                            <div className="glass neon-border-fuchsia rounded-3xl overflow-hidden p-1 min-h-[500px] flex flex-col">
+                                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <TrendingUp className="w-5 h-5 text-fuchsia-400" />
+                                        <h3 className="text-xl font-bold text-white tracking-wide">Attendance History</h3>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 flex-1 flex flex-col items-center justify-center relative w-full">
+                                    {/* Charts Container */}
+                                    <div className="w-full h-full flex flex-col gap-6">
+
+                                        {/* Fetch and Display History */}
+                                        <HistoryChart currentData={data} />
+
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                     </motion.div>
                 </AnimatePresence>
 
@@ -764,6 +798,133 @@ const getProgressColor = (percent) => {
     if (p >= 75) return 'bg-emerald-400';
     if (p >= 65) return 'bg-amber-400';
     return 'bg-red-500';
+};
+
+const HistoryChart = ({ currentData }) => {
+    const [historyData, setHistoryData] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            try {
+                // In a real app, use the API
+                const res = await fetch('http://localhost:8000/api/history');
+                const data = await res.json();
+                let fetchedHistory = data.history || [];
+
+                // Fallback: If history is empty OR doesn't have today's data, use currentData
+                if (currentData) {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const hasToday = fetchedHistory.some(h => h.date === todayStr);
+
+                    if (!hasToday || fetchedHistory.length === 0) {
+                        // Construct temporary entry from current session data
+                        const tempEntry = {
+                            date: todayStr,
+                            overall: currentData.overall_course_avg || 0,
+                            biometric: currentData.biometric?.biometric_percentage || 0
+                        };
+
+                        if (fetchedHistory.length === 0) {
+                            fetchedHistory = [tempEntry];
+                        } else {
+                            // Append if not present
+                            fetchedHistory.push(tempEntry);
+                        }
+                    }
+                }
+
+                setHistoryData(fetchedHistory);
+            } catch (err) {
+                console.error("Failed to fetch history:", err);
+                // Fallback on error too
+                if (currentData) {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    setHistoryData([{
+                        date: todayStr,
+                        overall: currentData.overall_course_avg || 0,
+                        biometric: currentData.biometric?.biometric_percentage || 0
+                    }]);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHistory();
+    }, [currentData]);
+
+    if (loading) return <div className="text-slate-500 animate-pulse">Loading history...</div>;
+
+    // Double check just in case
+    if (!historyData || historyData.length === 0) return (
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+            <AlertCircle className="w-10 h-10 opacity-20" />
+            <p>No history data recorded yet.</p>
+            <p className="text-xs opacity-50">Data updates daily at 11:00 PM.</p>
+        </div>
+    );
+
+    // Render Table Only (Graph Removed)
+    return (
+        <div className="w-full h-full flex flex-col items-center justify-start pt-4">
+            {/* History Table */}
+            <div className="w-full max-w-5xl glass neon-border-fuchsia rounded-3xl overflow-hidden p-1">
+                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                    <div className="flex items-center gap-3">
+                        <History className="w-5 h-5 text-fuchsia-400" />
+                        <h3 className="text-xl font-bold text-white tracking-wide">Daily History Log</h3>
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium">
+                        Updates daily at 11:00 PM
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
+                    <table className="w-full border-collapse table-fixed">
+                        <thead className="sticky top-0 bg-slate-900/95 backdrop-blur-md z-10 shadow-lg">
+                            <tr className="text-slate-400 text-sm border-b border-white/10">
+                                <th className="p-6 font-semibold tracking-wider text-center w-1/3 uppercase text-xs">Date</th>
+                                <th className="p-6 font-semibold tracking-wider text-center w-1/3 uppercase text-xs">Overall Attendance</th>
+                                <th className="p-6 font-semibold tracking-wider text-center w-1/3 uppercase text-xs">Biometric Total</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-sm divide-y divide-white/5">
+                            {historyData.slice().reverse().map((entry, idx) => (
+                                <tr key={idx} className="group transition-all hover:bg-white/[0.03]">
+                                    <td className="p-6 text-slate-300 font-mono text-center text-base">
+                                        {entry.date}
+                                    </td>
+
+                                    <td className="p-6 text-center">
+                                        <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-800/50 border border-white/5 min-w-[100px]">
+                                            <span className={`text-lg font-bold ${parseFloat(entry.overall) >= 75 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                {parseFloat(entry.overall).toFixed(2)}%
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <td className="p-6 text-center">
+                                        <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-800/50 border border-white/5 min-w-[100px]">
+                                            <span className="text-lg font-bold text-cyan-400">
+                                                {parseFloat(entry.biometric).toFixed(2)}%
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {historyData.length === 0 && (
+                        <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-3">
+                            <AlertCircle className="w-8 h-8 opacity-20" />
+                            <p>No history records found.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default App;
