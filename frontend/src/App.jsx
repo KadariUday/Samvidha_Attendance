@@ -10,11 +10,13 @@ import {
     BookOpen,
     Fingerprint,
     ChevronRight,
+    ChevronDown,
     Loader2,
     XCircle,
     Github,
     Linkedin,
-    Calendar
+    Calendar,
+    ListFilter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -29,6 +31,7 @@ const App = () => {
     const [credentials, setCredentials] = useState({ username: '', password: '' });
     const [activeTab, setActiveTab] = useState('home');
     const [targetPercentage, setTargetPercentage] = useState(75);
+    const [sortOrder, setSortOrder] = useState('default');
 
     const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -408,9 +411,24 @@ const App = () => {
 
                                 {/* Attendance Table */}
                                 <div className="glass neon-border-pink rounded-3xl overflow-hidden p-1">
-                                    <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/5">
-                                        <BookOpen className="w-5 h-5 text-pink-400" />
-                                        <h3 className="text-xl font-bold text-white tracking-wide">Course Attendance Breakdown</h3>
+                                    <div className="p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5">
+                                        <div className="flex items-center gap-3">
+                                            <BookOpen className="w-5 h-5 text-pink-400" />
+                                            <h3 className="text-xl font-bold text-white tracking-wide">Course Attendance Breakdown</h3>
+                                        </div>
+                                        <div className="flex items-center gap-2 relative">
+                                            <ListFilter className="w-4 h-4 text-slate-400" />
+                                            <select
+                                                value={sortOrder}
+                                                onChange={(e) => setSortOrder(e.target.value)}
+                                                className="bg-slate-900/50 border border-white/10 text-slate-300 text-sm rounded-xl pl-3 pr-8 py-1.5 outline-none focus:border-pink-500/50 transition-colors cursor-pointer appearance-none"
+                                            >
+                                                <option value="default" className="bg-slate-900">Default Order</option>
+                                                <option value="lowest" className="bg-slate-900">Lowest Attendance First</option>
+                                                <option value="highest" className="bg-slate-900">Highest Attendance First</option>
+                                            </select>
+                                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 pointer-events-none" />
+                                        </div>
                                     </div>
 
                                     <div className="overflow-x-auto">
@@ -426,7 +444,11 @@ const App = () => {
                                                 </tr>
                                             </thead>
                                             <tbody className="text-sm">
-                                                {data.course_attendance.map((course, idx) => (
+                                                {[...data.course_attendance].sort((a, b) => {
+                                                    if (sortOrder === 'lowest') return parseFloat(a['Attendance %']) - parseFloat(b['Attendance %']);
+                                                    if (sortOrder === 'highest') return parseFloat(b['Attendance %']) - parseFloat(a['Attendance %']);
+                                                    return 0;
+                                                }).map((course, idx) => (
                                                     <tr key={idx} className="group table-row-hover transition-colors border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
                                                         <td className="p-6">
                                                             <p className="font-semibold text-white text-base mb-1">{course['Course Name']}</p>
