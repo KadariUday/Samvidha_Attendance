@@ -18,7 +18,7 @@ app = FastAPI(title="Samvidha Attendance API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -257,7 +257,12 @@ async def get_attendance(login_data: LoginRequest):
             register_task
         )
 
+        if attendance_data is None:
+            raise HTTPException(status_code=500, detail="Failed to scrape attendance data from portal")
 
+        student_info = attendance_data.get("student_info", {})
+        if not student_info.get("Name") and not student_info.get("Rollno") and not student_info.get("Roll No"):
+            raise HTTPException(status_code=401, detail="Invalid credentials or login failed at Samvidha portal")
 
         print(f"Total processing time: {time.time() - total_start:.2f}s")
         response_payload = {

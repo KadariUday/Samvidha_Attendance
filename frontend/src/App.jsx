@@ -16,7 +16,8 @@ import {
     Github,
     Linkedin,
     Calendar,
-    ListFilter
+    ListFilter,
+    Unlock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,6 +33,7 @@ const App = () => {
     const [activeTab, setActiveTab] = useState('home');
     const [targetPercentage, setTargetPercentage] = useState(75);
     const [sortOrder, setSortOrder] = useState('default');
+    const [showPassword, setShowPassword] = useState(false);
 
     const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -191,9 +193,20 @@ const App = () => {
 
                                 <div className="group">
                                     <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-purple-400 transition-colors" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 hover:scale-110 transition-transform focus:outline-none"
+                                            title={showPassword ? "Hide Password" : "Show Password"}
+                                        >
+                                            {showPassword ? (
+                                                <Unlock className="w-5 h-5 text-purple-400" />
+                                            ) : (
+                                                <Lock className="w-5 h-5 text-slate-400 group-focus-within:text-purple-400 transition-colors" />
+                                            )}
+                                        </button>
                                         <input
-                                            type="password"
+                                            type={showPassword ? "text" : "password"}
                                             required
                                             value={credentials.password}
                                             onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
