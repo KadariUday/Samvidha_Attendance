@@ -814,7 +814,16 @@ const HistoryChart = ({ currentData }) => {
 
                 // Fallback: If history is empty OR doesn't have today's data, use currentData
                 if (currentData) {
-                    const todayStr = new Date().toISOString().split('T')[0];
+                    // Fix: Use local date to match backend, NOT UTC
+                    // AND match 6 AM cutoff
+                    const date = new Date();
+                    if (date.getHours() < 6) {
+                        date.setDate(date.getDate() - 1);
+                    }
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const todayStr = `${year}-${month}-${day}`;
                     const hasToday = fetchedHistory.some(h => h.date === todayStr);
 
                     if (!hasToday || fetchedHistory.length === 0) {
@@ -839,7 +848,16 @@ const HistoryChart = ({ currentData }) => {
                 console.error("Failed to fetch history:", err);
                 // Fallback on error too
                 if (currentData) {
-                    const todayStr = new Date().toISOString().split('T')[0];
+                    // Fix: Use local date here too
+                    // AND match 6 AM cutoff
+                    const date = new Date();
+                    if (date.getHours() < 6) {
+                        date.setDate(date.getDate() - 1);
+                    }
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const todayStr = `${year}-${month}-${day}`;
                     setHistoryData([{
                         date: todayStr,
                         overall: currentData.overall_course_avg || 0,

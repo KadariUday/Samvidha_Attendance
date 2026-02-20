@@ -32,6 +32,9 @@ htmlcov/
 # Logs
 *.log
 
+# Application Data
+history.json
+
 # ==============================
 # Node.js / React (Frontend)
 # ==============================

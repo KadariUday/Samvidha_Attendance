@@ -1,6 +1,14 @@
 import json
+import os
+import time
 from datetime import datetime
 import asyncio
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import httpx
+from bs4 import BeautifulSoup
 
 # History Data File
 # Use absolute path to ensure checking same file location
@@ -330,15 +338,36 @@ async def get_attendance(login_data: LoginRequest):
         # Every time we fetch data, we update today's history entry.
         try:
             history = load_history()
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            
-            # Check if today already exists
-            existing_idx = next((i for i, x in enumerate(history) if x["date"] == today_str), -1)
+            # Determine "Today" based on 6:00 AM cutoff
+            from datetime import timedelta
+            now = datetime.now()
+            if now.hour < 6:
+                today_date = now - timedelta(days=1)
+            else:
+                today_date = now
+
+            yesterday_date = today_date - timedelta(days=1)
+                
+            today_str = today_date.strftime("%Y-%m-%d")
+            yesterday_str = yesterday_date.strftime("%Y-%m-%d")
             
             # Safe access for biometric data
             bio_val = 0
             if biometric_data and isinstance(biometric_data, dict):
                 bio_val = biometric_data.get("biometric_percentage", 0)
+
+            # Check if yesterday already exists
+            has_yesterday = any(x["date"] == yesterday_str for x in history)
+            if not has_yesterday:
+                y_entry = {
+                    "date": yesterday_str,
+                    "overall": attendance_data.get("overall_course_avg", 0),
+                    "biometric": bio_val
+                }
+                history.append(y_entry)
+
+            # Check if today already exists
+            existing_idx = next((i for i, x in enumerate(history) if x["date"] == today_str), -1)
 
             entry = {
                 "date": today_str,
@@ -350,7 +379,8 @@ async def get_attendance(login_data: LoginRequest):
                 history[existing_idx] = entry
             else:
                 history.append(entry)
-            
+                
+            history.sort(key=lambda x: x["date"])
             save_history(history)
             print(f"DEBUG: Auto-saved history for {today_str}: {entry}")
         except Exception as e:
@@ -394,15 +424,39 @@ async def perform_scheduled_scrape():
                  
                  if att_data and bio_data:
                      history = load_history()
-                     today_str = datetime.now().strftime("%Y-%m-%d")
+                     # Determine "Today" based on 6:00 AM cutoff
+                     from datetime import timedelta
+                     now = datetime.now()
+                     if now.hour < 6:
+                         today_date = now - timedelta(days=1)
+                     else:
+                         today_date = now
+
+                     yesterday_date = today_date - timedelta(days=1)
+                         
+                     today_str = today_date.strftime("%Y-%m-%d")
+                     yesterday_str = yesterday_date.strftime("%Y-%m-%d")
                      
+                     overall_val = att_data.get("overall_course_avg", 0)
+                     bio_val = bio_data.get("biometric_percentage", 0)
+                     
+                     # Check if yesterday already exists
+                     has_yesterday = any(x["date"] == yesterday_str for x in history)
+                     if not has_yesterday:
+                         y_entry = {
+                             "date": yesterday_str,
+                             "overall": overall_val,
+                             "biometric": bio_val
+                         }
+                         history.append(y_entry)
+
                      # Check if today already exists
                      existing_idx = next((i for i, x in enumerate(history) if x["date"] == today_str), -1)
                      
                      entry = {
                          "date": today_str,
-                         "overall": att_data.get("overall_course_avg", 0),
-                         "biometric": bio_data.get("biometric_percentage", 0)
+                         "overall": overall_val,
+                         "biometric": bio_val
                      }
                      
                      if existing_idx >= 0:
@@ -410,6 +464,7 @@ async def perform_scheduled_scrape():
                      else:
                          history.append(entry)
                     
+                     history.sort(key=lambda x: x["date"])
                      save_history(history)
                      print(f"Updated history for {today_str}: {entry}")
     except Exception as e:
