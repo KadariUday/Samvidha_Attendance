@@ -70,6 +70,7 @@ pnpm-debug.log*
 .idea/
 *.swp
 *.swo
+.git/
 .git/objects
 # ==============================
 # OS Files
