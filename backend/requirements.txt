@@ -2,6 +2,4 @@ fastapi
 uvicorn
 httpx
 beautifulsoup4
-mysql-connector-python
 pydantic
-python-dotenv

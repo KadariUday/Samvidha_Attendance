@@ -2,7 +2,6 @@ import json
 import os
 import time
 from datetime import datetime
-from dotenv import load_dotenv
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
@@ -10,11 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 from bs4 import BeautifulSoup
-import mysql.connector
-from mysql.connector import Error
 
-# Load environment variables from .env file
-load_dotenv()
 
 app = FastAPI(title="Samvidha Attendance API")
 
@@ -26,60 +21,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# MySQL connection configuration
-db_config = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', ''),
-    'database': os.getenv('DB_NAME', 'samvidha_attendance')
-}
-
-def init_db():
-    try:
-        connection = mysql.connector.connect(
-            host=db_config['host'],
-            user=db_config['user'],
-            password=db_config['password']
-        )
-        if connection.is_connected():
-            cursor = connection.cursor()
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_config['database']}")
-            cursor.execute(f"USE {db_config['database']}")
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    roll_number VARCHAR(20) UNIQUE,
-                    password VARCHAR(255),
-                    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                )
-            """)
-            print("Successfully connected to MySQL and ensured table exists.")
-            cursor.close()
-            connection.close()
-    except Error as e:
-        print(f"Error while connecting to MySQL: {e}")
-
-# Initialize the database on startup
-init_db()
-
-def save_user(roll_number, password):
-    try:
-        connection = mysql.connector.connect(**db_config)
-        if connection.is_connected():
-            cursor = connection.cursor()
-            query = """
-                INSERT INTO users (roll_number, password)
-                VALUES (%s, %s)
-                ON DUPLICATE KEY UPDATE password = %s
-            """
-            cursor.execute(query, (roll_number, password, password))
-            connection.commit()
-            print(f"Successfully saved/updated user: {roll_number}")
-            cursor.close()
-            connection.close()
-    except Error as e:
-        print(f"Error saving user to MySQL: {e}")
 
 class LoginRequest(BaseModel):
     username: str
@@ -323,10 +264,6 @@ async def get_attendance(login_data: LoginRequest):
             raise HTTPException(status_code=401, detail="Invalid credentials or login failed at Samvidha portal")
 
         print(f"Total processing time: {time.time() - total_start:.2f}s")
-        
-        # Save user to MySQL asynchronously (fire and forget for now, or just sync for simplicity)
-        save_user(login_data.username, login_data.password)
-
         response_payload = {
             "success": True,
             "data": {
