@@ -13,7 +13,6 @@ import {
     ChevronDown,
     Loader2,
     XCircle,
-    Github,
     Linkedin,
     Calendar,
     ListFilter,
@@ -695,17 +694,6 @@ const Footer = () => (
             </p>
 
             <div className="flex items-center gap-4">
-                <a
-                    href="https://github.com/KadariUday"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/10 transition-all active:scale-95 group"
-                    title="GitHub"
-                >
-                    <Github className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    <span className="text-xs font-semibold tracking-wide">GitHub</span>
-                </a>
-
                 <a
                     href="https://www.linkedin.com/in/kadariuday"
                     target="_blank"
