@@ -689,11 +689,18 @@ const App = () => {
 const Footer = () => (
     <footer className="w-full py-8 mt-auto border-t border-white/5 relative z-10">
         <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
+            <div className="glass px-6 py-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 flex items-start sm:items-center gap-3 max-w-md shadow-lg shadow-blue-500/5 transition-all hover:border-blue-500/40">
+                <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                <p className="text-xs text-slate-300 leading-relaxed text-center sm:text-left">
+                    Contact me on <span className="text-[#0077b5] font-semibold">LinkedIn</span> to need app/apk file of this respective website.
+                </p>
+            </div>
             <p className="text-slate-500 text-sm font-medium">
                 Maintained By <span className="text-blue-400">Kadari Uday</span>
             </p>
 
             <div className="flex items-center gap-4">
+                <span className="text-slate-400 text-sm font-medium">Contact me</span>
                 <a
                     href="https://www.linkedin.com/in/kadariuday"
                     target="_blank"
