@@ -692,7 +692,7 @@ const Footer = () => (
             <div className="glass px-6 py-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 flex items-start sm:items-center gap-3 max-w-md shadow-lg shadow-blue-500/5 transition-all hover:border-blue-500/40">
                 <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5 sm:mt-0" />
                 <p className="text-xs text-slate-300 leading-relaxed text-center sm:text-left">
-                    Contact me on <span className="text-[#0077b5] font-semibold">LinkedIn</span> to need app/apk file of this respective website.
+                    You can download app/apk file of this respective website from <span className="text-[#0077b5] font-semibold"><a href="https://t.me/+5VyXJ9kSVn5jZDI1"><button>Telegram</button></a></span> .
                 </p>
             </div>
             <p className="text-slate-500 text-sm font-medium">
