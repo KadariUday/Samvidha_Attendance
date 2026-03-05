@@ -294,9 +294,7 @@ async def get_attendance(login_data: LoginRequest):
         'username': login_data.username,
         'password': login_data.password
     }
-
     async with httpx.AsyncClient(verify=False, follow_redirects=True, timeout=30.0) as client:
-    # async with httpx.AsyncClient(verify=False, follow_redirects=True) as client:
         login_response = await client.post(LOGIN_URL, data=payload, headers=HEADERS)
         if login_response.status_code != 200:
             raise HTTPException(status_code=401, detail="Login failed at Samvidha portal")
