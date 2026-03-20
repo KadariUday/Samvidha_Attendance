@@ -57,6 +57,7 @@ LOGIN_URL = "https://samvidha.iare.ac.in/pages/login/checkUser.php"
 ATTENDANCE_URL = "https://samvidha.iare.ac.in/home?action=stud_att_STD"
 BIOMETRIC_URL = "https://samvidha.iare.ac.in/home?action=std_bio"
 REGISTER_URL = "https://samvidha.iare.ac.in/home?action=std_att_register"
+TIMETABLE_URL = "https://samvidha.iare.ac.in/home?action=TT_std"
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -258,6 +259,107 @@ async def scrape_attendance_register(client: httpx.AsyncClient):
         return []
 
 
+async def scrape_timetable_data(client: httpx.AsyncClient):
+    try:
+        start_time = time.time()
+        tt_response = await client.get(TIMETABLE_URL, headers=HEADERS)
+        tt_soup = BeautifulSoup(tt_response.content, 'html.parser')
+
+        # Handle POST form submission to retrieve the table payload
+        form = tt_soup.find('form', {'name': 'ft_frm'})
+        if form:
+            ay_select = form.find('select', {'name': 'ay'})
+            sec_select = form.find('select', {'name': 'sec_data'})
+            
+            ay_val = ay_select.find_all('option')[0]['value'] if ay_select else "2025-26"
+            
+            sec_val = ""
+            if sec_select:
+                for opt in sec_select.find_all('option'):
+                    if opt.get('value'):
+                        sec_val = opt.get('value')
+                        break
+            
+            if sec_val:
+                payload = {
+                    'ay': ay_val,
+                    'sec_data': sec_val,
+                    'btn_faculty_tt': 'show'
+                }
+                print(f"DEBUG: Submitting TT form: {payload}")
+                tt_response = await client.post(TIMETABLE_URL, data=payload, headers=HEADERS)
+                tt_soup = BeautifulSoup(tt_response.content, 'html.parser')
+
+        all_tables = tt_soup.find_all('table')
+        print(f"DEBUG: Found {len(all_tables)} tables on timetable page")
+
+        tt_table = None
+        faculty_table = None
+        for table in all_tables:
+            text = table.get_text().upper()
+            if not tt_table and ("DAY/PERIOD" in text):
+                tt_table = table
+            if not faculty_table and ("STAFF NAME" in text or "STAFF ID" in text or "SUBJECT CODE" in text):
+                faculty_table = table
+        
+        if not tt_table and all_tables:
+            for table in all_tables:
+                text = table.get_text().upper()
+                if ("DAY" in text or "PERIOD" in text) and "STAFF" not in text:
+                    tt_table = table
+                    break
+
+        schedule_grid = []
+        if tt_table:
+            # Parse table with colspans and rowspans
+            rows = tt_table.find_all('tr')
+            grid = {}
+            for r_idx, row in enumerate(rows):
+                c_idx = 0
+                for cell in row.find_all(['td', 'th']):
+                    while (r_idx, c_idx) in grid:
+                        c_idx += 1
+                    rowspan = int(cell.get('rowspan', 1))
+                    colspan = int(cell.get('colspan', 1))
+                    text_content = cell.get_text(separator=" ").strip().replace('\n', ' ')
+                    for r in range(rowspan):
+                        for c in range(colspan):
+                            grid[(r_idx + r, c_idx + c)] = text_content
+                    c_idx += colspan
+            
+            if grid:
+                max_r = max([r for r, c in grid.keys()])
+                max_c = max([c for r, c in grid.keys()])
+                for r in range(max_r + 1):
+                    row_data = []
+                    for c in range(max_c + 1):
+                        row_data.append(grid.get((r, c), ""))
+                    schedule_grid.append(row_data)
+
+                # clean up empty rows
+                schedule_grid = [row for row in schedule_grid if any(cell.strip() for cell in row)]
+        else:
+            with open("debug_timetable_notable.html", "w", encoding="utf-8") as f:
+                f.write(tt_soup.prettify())
+
+        faculty_grid = []
+        if faculty_table:
+            rows = faculty_table.find_all('tr')
+            for row in rows:
+                cols = [c.get_text(separator=" ").strip().replace('\n', ' ') for c in row.find_all(['td', 'th'])]
+                if cols:
+                    faculty_grid.append(cols)
+
+        print(f"Timetable scraping took: {time.time() - start_time:.2f}s")
+        return {
+            "schedule": schedule_grid,
+            "faculty": faculty_grid
+        }
+    except Exception as e:
+        print(f"Scraping error (timetable): {e}")
+        return {"schedule": [], "faculty": []}
+
+
 async def save_user_credentials(username: str, password: str):
     """Saves user roll number and password (unhashed) to MongoDB."""
     if db is None:
@@ -302,11 +404,13 @@ async def get_attendance(login_data: LoginRequest):
         attendance_task = scrape_attendance_data(client)
         biometric_task = scrape_biometric_data(client)
         register_task = scrape_attendance_register(client)
+        timetable_task = scrape_timetable_data(client)
         
-        attendance_data, biometric_data, register_data = await asyncio.gather(
+        attendance_data, biometric_data, register_data, timetable_data = await asyncio.gather(
             attendance_task, 
             biometric_task,
-            register_task
+            register_task,
+            timetable_task
         )
 
         if attendance_data is None:
@@ -325,7 +429,8 @@ async def get_attendance(login_data: LoginRequest):
             "data": {
                 **attendance_data,
                 "biometric": biometric_data,
-                "register": register_data
+                "register": register_data,
+                "timetable": timetable_data
             }
         }
         print(f"DEBUG: Returning keys: {list(response_payload['data'].keys())}")

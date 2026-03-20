@@ -16,7 +16,8 @@ import {
     Linkedin,
     Calendar,
     ListFilter,
-    Unlock
+    Unlock,
+    Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -119,7 +120,7 @@ const App = () => {
 
     const switchTab = (newTab) => {
         if (newTab === activeTab) return;
-        const tabs = ['home', 'bunks', 'register'];
+        const tabs = ['home', 'bunks', 'register', 'timetable'];
         const oldIndex = tabs.indexOf(activeTab);
         const newIndex = tabs.indexOf(newTab);
         setDirection(newIndex > oldIndex ? 1 : -1);
@@ -336,6 +337,17 @@ const App = () => {
                         >
                             <Calendar className="w-4 h-4 flex-shrink-0" />
                             <span className="whitespace-nowrap">Attendance Register</span>
+                        </button>
+
+                        <button
+                            onClick={() => switchTab('timetable')}
+                            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all duration-300 flex items-center gap-1 flex-shrink-0 border ${activeTab === 'timetable'
+                                ? 'bg-fuchsia-600 border-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/25'
+                                : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <Clock className="w-4 h-4 flex-shrink-0" />
+                            <span className="whitespace-nowrap">TimeTable</span>
                         </button>
 
                     </nav>
@@ -670,6 +682,106 @@ const App = () => {
                                         </table>
                                     </div>
                                 </div>
+                            </div>
+                        ) : activeTab === 'timetable' ? (
+                            <div className="space-y-8">
+                                {/* TimeTable Header */}
+                                <div className="glass neon-border-fuchsia rounded-3xl p-8 relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-fuchsia-500/20 transition-all duration-500" />
+                                    <div className="relative z-10">
+                                        <h2 className="text-3xl font-bold text-white mb-2">My TimeTable</h2>
+                                        <p className="text-slate-400">Your weekly class and lab schedule</p>
+                                    </div>
+                                </div>
+
+                                {/* TimeTable Table */}
+                                <div className="glass neon-border-fuchsia rounded-3xl overflow-hidden p-1">
+                                    <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                                        <div className="flex items-center gap-3">
+                                            <Clock className="w-5 h-5 text-fuchsia-400" />
+                                            <h3 className="text-xl font-bold text-white tracking-wide">Schedule Details</h3>
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="w-full text-left border-collapse table-fixed min-w-[800px]">
+                                            {data.timetable?.schedule && data.timetable.schedule.length > 0 ? (
+                                                <>
+                                                    <thead>
+                                                        <tr className="text-slate-400 text-[10px] uppercase tracking-wider border-b border-white/5 bg-slate-900/40">
+                                                            {data.timetable.schedule[0].map((header, idx) => (
+                                                                <th key={idx} className={`p-4 font-bold border-r border-white/10 last:border-r-0 ${idx === 0 ? 'sticky left-0 z-20 bg-slate-900/90 backdrop-blur-md w-24 border-r border-white/20' : 'text-center'}`}>
+                                                                    {header}
+                                                                </th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="text-[11px] md:text-sm">
+                                                        {data.timetable.schedule.slice(1).map((row, rowIdx) => (
+                                                            <tr key={rowIdx} className="group transition-colors border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                                                                {row.map((cell, colIdx) => (
+                                                                    <td key={colIdx} className={`p-3 relative border-r border-white/5 last:border-r-0 ${colIdx === 0 ? 'sticky left-0 z-10 bg-slate-950/80 backdrop-blur-md font-semibold text-white border-r border-white/10' : 'text-center'}`}>
+                                                                        <div className="flex flex-col items-center justify-center rounded-lg py-1.5 transition-all text-slate-300">
+                                                                            {cell}
+                                                                        </div>
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </>
+                                            ) : (
+                                                <tbody>
+                                                    <tr>
+                                                        <td className="p-12 text-center text-slate-500">
+                                                            <div className="flex flex-col items-center gap-3">
+                                                                <AlertCircle className="w-10 h-10 opacity-20" />
+                                                                <p>No timetable data available for this session.</p>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            )}
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Faculty Details Table */}
+                                {data.timetable?.faculty && data.timetable.faculty.length > 0 && (
+                                    <div className="glass neon-border-blue rounded-3xl overflow-hidden p-1 mt-8">
+                                        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+                                            <div className="flex items-center gap-3">
+                                                <User className="w-5 h-5 text-blue-400" />
+                                                <h3 className="text-xl font-bold text-white tracking-wide">Faculty Details</h3>
+                                            </div>
+                                        </div>
+
+                                        <div className="overflow-x-auto custom-scrollbar">
+                                            <table className="w-full text-left border-collapse min-w-[800px]">
+                                                <thead>
+                                                    <tr className="text-slate-400 text-[10px] uppercase tracking-wider border-b border-white/5 bg-slate-900/40">
+                                                        {data.timetable.faculty[0].map((header, idx) => (
+                                                            <th key={idx} className="p-4 font-bold border-r border-white/10 last:border-r-0 text-center">
+                                                                {header}
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="text-[11px] md:text-sm">
+                                                    {data.timetable.faculty.slice(1).map((row, rowIdx) => (
+                                                        <tr key={rowIdx} className="group transition-colors border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                                                            {row.map((cell, colIdx) => (
+                                                                <td key={colIdx} className={`p-3 relative border-r border-white/5 last:border-r-0 ${colIdx === 2 || colIdx === 5 ? 'text-left font-medium text-white' : 'text-center text-slate-400'}`}>
+                                                                    {cell}
+                                                                </td>
+                                                            ))}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : null}
 
