@@ -336,8 +336,9 @@ async def scrape_timetable_data(client: httpx.AsyncClient):
                         row_data.append(grid.get((r, c), ""))
                     schedule_grid.append(row_data)
 
-                # clean up empty rows
+                # clean up empty rows and metadata rows
                 schedule_grid = [row for row in schedule_grid if any(cell.strip() for cell in row)]
+                schedule_grid = [row for row in schedule_grid if not ("ACADEMIC YEAR" in " ".join(row).upper() or "BRANCH/SECTION" in " ".join(row).upper())]
         else:
             with open("debug_timetable_notable.html", "w", encoding="utf-8") as f:
                 f.write(tt_soup.prettify())
@@ -348,6 +349,10 @@ async def scrape_timetable_data(client: httpx.AsyncClient):
             for row in rows:
                 cols = [c.get_text(separator=" ").strip().replace('\n', ' ') for c in row.find_all(['td', 'th'])]
                 if cols:
+                    # Skip metadata rows (e.g., "ACADEMIC YEAR", "BRANCH/SECTION")
+                    row_text = " ".join(cols).upper()
+                    if "ACADEMIC YEAR" in row_text or "BRANCH/SECTION" in row_text:
+                        continue
                     faculty_grid.append(cols)
 
         print(f"Timetable scraping took: {time.time() - start_time:.2f}s")
