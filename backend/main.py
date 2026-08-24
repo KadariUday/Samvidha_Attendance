@@ -53,6 +53,7 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+HOME_URL = "https://samvidha.iare.ac.in/"
 LOGIN_URL = "https://samvidha.iare.ac.in/pages/login/checkUser.php"
 ATTENDANCE_URL = "https://samvidha.iare.ac.in/home?action=stud_att_STD"
 BIOMETRIC_URL = "https://samvidha.iare.ac.in/home?action=std_bio"
@@ -60,7 +61,8 @@ REGISTER_URL = "https://samvidha.iare.ac.in/home?action=std_att_register"
 TIMETABLE_URL = "https://samvidha.iare.ac.in/home?action=TT_std"
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
 }
 
 async def scrape_attendance_data(client: httpx.AsyncClient):
@@ -395,17 +397,55 @@ async def save_user_credentials(username: str, password: str):
 @app.post("/api/attendance")
 async def get_attendance(login_data: LoginRequest):
     total_start = time.time()
+    print(f"\n--- Login Attempt for User: '{login_data.username}' ---")
 
-
-    payload = {
-        'username': login_data.username,
-        'password': login_data.password
-    }
     async with httpx.AsyncClient(verify=False, follow_redirects=True, timeout=30.0) as client:
-        login_response = await client.post(LOGIN_URL, data=payload, headers=HEADERS)
-        if login_response.status_code != 200:
-            raise HTTPException(status_code=401, detail="Login failed at Samvidha portal")
+        # 1. Fetch home page to get CSRF token and session cookies
+        try:
+            home_response = await client.get(HOME_URL, headers=HEADERS)
+            soup = BeautifulSoup(home_response.content, 'html.parser')
+            csrf_meta = soup.find('meta', {'name': 'csrf-token'})
+            csrf_token = csrf_meta['content'] if csrf_meta else ''
+            print(f"DEBUG: CSRF Token: {csrf_token}")
+        except Exception as e:
+            print(f"DEBUG: Error fetching CSRF token: {e}")
+            csrf_token = ''
+
+        # 2. Login request with CSRF token header
+        post_headers = HEADERS.copy()
+        if csrf_token:
+            post_headers['X-CSRF-Token'] = csrf_token
+        post_headers['X-Requested-With'] = 'XMLHttpRequest'
+
+        payload = {
+            'username': login_data.username,
+            'password': login_data.password
+        }
+
+        login_response = await client.post(LOGIN_URL, data=payload, headers=post_headers)
+        print(f"DEBUG: Login HTTP status: {login_response.status_code}, response: {login_response.text}")
         
+        if login_response.status_code != 200:
+            print("DEBUG: Portal returned non-200 status code on login POST")
+            raise HTTPException(status_code=401, detail="Login failed at Samvidha portal")
+
+        try:
+            res_json = login_response.json()
+            if isinstance(res_json, dict):
+                status = str(res_json.get("status", ""))
+                if status == "0":
+                    msg = res_json.get("msg", "Invalid username or password!")
+                    print(f"DEBUG: Portal returned status 0 (Failed): {msg}")
+                    raise HTTPException(status_code=401, detail=msg)
+                elif status == "2":
+                    msg = res_json.get("msg", "Your Login is expired or not active. Please contact administrator!")
+                    print(f"DEBUG: Portal returned status 2 (Inactive): {msg}")
+                    raise HTTPException(status_code=401, detail=msg)
+        except json.JSONDecodeError:
+            print("DEBUG: Could not parse login response as JSON")
+            pass
+
+        # 3. Scrape data concurrently
         attendance_task = scrape_attendance_data(client)
         biometric_task = scrape_biometric_data(client)
         register_task = scrape_attendance_register(client)
@@ -419,10 +459,13 @@ async def get_attendance(login_data: LoginRequest):
         )
 
         if attendance_data is None:
+            print("DEBUG: Attendance scraping failed (returned None)")
             raise HTTPException(status_code=500, detail="Failed to scrape attendance data from portal")
 
         student_info = attendance_data.get("student_info", {})
+        print(f"DEBUG: Scraped student_info: {student_info}")
         if not student_info.get("Name") and not student_info.get("Rollno") and not student_info.get("Roll No"):
+            print("DEBUG: student_info missing Name or Rollno, login invalid or session lost")
             raise HTTPException(status_code=401, detail="Invalid credentials or login failed at Samvidha portal")
 
         # Save credentials to MongoDB after successful portal login
@@ -445,4 +488,4 @@ async def get_attendance(login_data: LoginRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
